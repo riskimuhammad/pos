@@ -6,7 +6,6 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../../../shared/widgets/language_switcher.dart';
 import '../../../../shared/widgets/sync_status_indicator.dart';
-import '../../../../shared/widgets/manual_sync_button.dart';
 import '../../../../shared/widgets/sync_details_dialog.dart';
 
 class DashboardPage extends StatelessWidget {
@@ -662,7 +661,7 @@ class DashboardPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Deteksi Produk dengan Kamera',
+            '🤖 AI Asisten Warung',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -671,7 +670,7 @@ class DashboardPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Scan produk tanpa barcode menggunakan teknologi AI. Tingkat akurasi 80%+ untuk produk yang sudah dilatih.',
+            'Prediksi penjualan, rekomendasi harga, dan insight bisnis cerdas untuk mengoptimalkan keuntungan warung Anda.',
             style: TextStyle(
               fontSize: 14,
               color: AppTheme.textSecondary,
@@ -682,9 +681,9 @@ class DashboardPage extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: dashboardController.openAICameraScan,
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                  label: const Text('Coba AI Scan'),
+                  onPressed: dashboardController.navigateToAIAssistant,
+                  icon: const Icon(Icons.psychology, size: 18),
+                  label: const Text('AI Assistant'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
@@ -695,19 +694,36 @@ class DashboardPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: dashboardController.showAIFeaturesInfo,
-                icon: const Icon(Icons.info_outline, size: 18),
-                label: const Text('Info'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primaryColor,
-                  side: BorderSide(color: AppTheme.primaryColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: dashboardController.openAICameraScan,
+                  icon: const Icon(Icons.camera_alt, size: 18),
+                  label: const Text('AI Scan'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
+                    side: BorderSide(color: AppTheme.primaryColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: dashboardController.showAIFeaturesInfo,
+              icon: const Icon(Icons.info_outline, size: 18),
+              label: const Text('Info Fitur AI'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: BorderSide(color: AppTheme.primaryColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
           ),
         ],
       ),

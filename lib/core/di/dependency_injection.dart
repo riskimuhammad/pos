@@ -20,6 +20,7 @@ import 'package:pos/features/products/domain/usecases/search_products.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
 import 'package:pos/features/pos/presentation/controllers/dashboard_controller.dart';
 import 'package:pos/features/ai_scan/presentation/controllers/ai_scan_controller.dart';
+import 'package:pos/features/ai_assistant/presentation/controllers/ai_assistant_controller.dart';
 import 'package:pos/core/sync/presentation/controllers/sync_controller.dart';
 import 'package:pos/core/sync/data/datasources/sync_local_datasource.dart';
 import 'package:pos/core/sync/data/datasources/sync_remote_datasource.dart';
@@ -31,6 +32,10 @@ import 'package:pos/core/ai/model_manager.dart';
 import 'package:pos/core/ai/ai_data_service.dart';
 // import 'package:pos/core/ai/yolo_detector.dart';
 import 'package:pos/core/ai/local_product_detector.dart';
+import 'package:pos/core/ai/sales_predictor.dart';
+import 'package:pos/core/ai/price_recommender.dart';
+import 'package:pos/core/ai/warung_assistant.dart';
+// import 'package:pos/core/ai/ai_api_service.dart';
 
 // Global feature toggles (switch to true when backend is ready)
 const bool kEnableRemoteApi = false; // affects auth repository data source
@@ -100,6 +105,9 @@ class DependencyInjection {
 
     // AI Scan controller
     Get.lazyPut<AIScanController>(() => AIScanController());
+    
+    // AI Assistant controller
+    Get.lazyPut<AIAssistantController>(() => AIAssistantController());
 
     // Sync dependencies
     Get.lazyPut<SyncLocalDataSource>(() => SyncLocalDataSourceImpl(database: Get.find<Database>()));
@@ -121,6 +129,19 @@ class DependencyInjection {
     // YOLO disabled in local-only mode
     Get.lazyPut<LocalProductDetector>(() => LocalProductDetector(
       databaseHelper: Get.find<DatabaseHelper>(),
+    ));
+    
+    // AI Warung Assistant services
+    Get.lazyPut<SalesPredictor>(() => SalesPredictor(
+      databaseHelper: Get.find<DatabaseHelper>(),
+    ));
+    Get.lazyPut<PriceRecommender>(() => PriceRecommender(
+      databaseHelper: Get.find<DatabaseHelper>(),
+    ));
+    Get.lazyPut<WarungAssistant>(() => WarungAssistant(
+      databaseHelper: Get.find<DatabaseHelper>(),
+      salesPredictor: Get.find<SalesPredictor>(),
+      priceRecommender: Get.find<PriceRecommender>(),
     ));
 
     // Language controller

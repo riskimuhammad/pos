@@ -43,6 +43,10 @@ class AppConstants {
   // Local-first AI toggle: if false, skip YOLO and model download
   static const bool enableYoloDetection = false;
   
+  // API Configuration
+  static const bool kEnableRemoteApi = false; // Set to true when API is ready
+  static const bool kEnableSync = false;      // Set to true when sync is ready
+  
   // Pagination
   static const int defaultPageSize = 20;
   static const int maxPageSize = 100;

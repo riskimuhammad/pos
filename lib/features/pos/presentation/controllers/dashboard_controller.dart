@@ -202,6 +202,11 @@ class DashboardController extends GetxController {
     Get.toNamed('/ai-scan');
   }
 
+  // Navigate to AI Assistant
+  void navigateToAIAssistant() {
+    Get.toNamed('/ai-assistant');
+  }
+
   // Show AI features info
   void showAIFeaturesInfo() {
     Get.dialog(
@@ -212,16 +217,28 @@ class DashboardController extends GetxController {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Deteksi Produk dengan Kamera',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              '🤖 AI Asisten Warung',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '• Prediksi penjualan & stok berdasarkan data historis\n'
+              '• Rekomendasi harga optimal untuk margin maksimal\n'
+              '• Analisis produk terlaris dan kategori menguntungkan\n'
+              '• Insight bisnis harian dengan rekomendasi aksi\n'
+              '• Forecasting revenue 30 hari ke depan',
+            ),
+            SizedBox(height: 16),
+            Text(
+              '📷 AI Scan Produk',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             SizedBox(height: 8),
             Text(
               '• Scan produk tanpa barcode menggunakan teknologi AI\n'
-              '• Tingkat akurasi 80%+ untuk produk yang sudah dilatih\n'
-              '• On-device inference untuk kecepatan optimal\n'
-              '• Fallback ke cloud inference jika diperlukan\n'
-              '• Feedback loop untuk meningkatkan akurasi model',
+              '• Learning dari input user untuk akurasi yang meningkat\n'
+              '• Local-first detection untuk kecepatan optimal\n'
+              '• Fallback ke training data jika tidak terdeteksi',
             ),
             SizedBox(height: 16),
             Text(
@@ -229,7 +246,7 @@ class DashboardController extends GetxController {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 4),
-            Text('• TensorFlow Lite (MobileNetV2)\n• Input: 224x224 RGB\n• Confidence threshold: 70%'),
+            Text('• Machine Learning & Statistical Analysis\n• Local Feature Extraction\n• Trend Analysis & Forecasting'),
           ],
         ),
         actions: [
