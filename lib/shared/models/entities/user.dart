@@ -1,6 +1,14 @@
 import 'package:equatable/equatable.dart';
 
 class User extends Equatable {
+  // Helper function to parse boolean from various types
+  static bool _parseBoolean(dynamic value, bool defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return defaultValue;
+  }
   final String id;
   final String tenantId;
   final String username;
@@ -47,7 +55,7 @@ class User extends Equatable {
       permissions: json['permissions'] != null
           ? List<String>.from(json['permissions'] as List)
           : [],
-      isActive: (json['is_active'] as int? ?? 1) == 1,
+      isActive: _parseBoolean(json['is_active'], true),
       lastLoginAt: json['last_login_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(json['last_login_at'] as int)
           : null,

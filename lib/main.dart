@@ -5,7 +5,9 @@ import 'package:get_storage/get_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/di/dependency_injection.dart';
+import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/middleware/auth_middleware.dart';
 import 'features/pos/presentation/pages/dashboard_page.dart';
 
 void main() async {
@@ -43,11 +45,13 @@ class PosApp extends StatelessWidget {
           name: '/login',
           page: () => const LoginPage(),
           transition: Transition.fadeIn,
+          middlewares: [GuestMiddleware()],
         ),
         GetPage(
           name: '/dashboard',
           page: () => const DashboardPage(),
           transition: Transition.fadeIn,
+          middlewares: [AuthMiddleware()],
         ),
       ],
     );
@@ -71,19 +75,20 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _initializeApp() async {
     // Simulate app initialization
     await Future.delayed(const Duration(seconds: 2));
-    
-    // Check if user is logged in
+
+    // Check if user has valid session
     try {
-      final storage = GetStorage();
-      final token = storage.read(AppConstants.tokenKey);
-      
-      if (token != null && token.isNotEmpty) {
+      final authController = Get.find<AuthController>();
+      final hasSession = await authController.checkSession();
+
+      if (hasSession) {
         Get.offNamed('/dashboard');
       } else {
         Get.offNamed('/login');
       }
     } catch (e) {
-      // If GetStorage fails, go to login
+      // If AuthController fails, go to login
+      debugPrint('Error during session check: $e');
       Get.offNamed('/login');
     }
   }

@@ -1,6 +1,14 @@
 import 'package:equatable/equatable.dart';
 
 class Location extends Equatable {
+  // Helper function to parse boolean from various types
+  static bool _parseBoolean(dynamic value, bool defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return defaultValue;
+  }
   final String id;
   final String tenantId;
   final String name;
@@ -36,8 +44,8 @@ class Location extends Equatable {
       name: json['name'] as String,
       type: json['type'] as String? ?? 'store',
       address: json['address'] as String?,
-      isPrimary: (json['is_primary'] as int? ?? 0) == 1,
-      isActive: (json['is_active'] as int? ?? 1) == 1,
+      isPrimary: _parseBoolean(json['is_primary'], false),
+      isActive: _parseBoolean(json['is_active'], true),
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(json['updated_at'] as int),
       deletedAt: json['deleted_at'] != null

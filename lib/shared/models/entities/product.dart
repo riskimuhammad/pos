@@ -1,6 +1,14 @@
 import 'package:equatable/equatable.dart';
 
 class Product extends Equatable {
+  // Helper function to parse boolean from various types
+  static bool _parseBoolean(dynamic value, bool defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return defaultValue;
+  }
   final String id;
   final String tenantId;
   final String sku;
@@ -61,10 +69,10 @@ class Product extends Equatable {
       priceBuy: (json['price_buy'] as num?)?.toDouble() ?? 0.0,
       priceSell: (json['price_sell'] as num).toDouble(),
       weight: (json['weight'] as num?)?.toDouble(),
-      hasBarcode: (json['has_barcode'] as int? ?? 0) == 1,
+      hasBarcode: _parseBoolean(json['has_barcode'], false),
       barcode: json['barcode'] as String?,
-      isExpirable: (json['is_expirable'] as int? ?? 0) == 1,
-      isActive: (json['is_active'] as int? ?? 1) == 1,
+      isExpirable: _parseBoolean(json['is_expirable'], false),
+      isActive: _parseBoolean(json['is_active'], true),
       minStock: json['min_stock'] as int? ?? 0,
       photos: json['photos'] != null
           ? List<String>.from(json['photos'] as List)

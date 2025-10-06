@@ -1,22 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final AuthController authController = Get.find<AuthController>();
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              // TODO: Implement logout
-              Get.offNamed('/login');
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                authController.logout();
+              }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -26,15 +41,30 @@ class DashboardPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Welcome Section
-            Card(
+            Obx(() => Card(
               child: Padding(
                 padding: const EdgeInsets.all(AppTheme.spacing16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Selamat Datang!',
+                    Text(
+                      'Selamat Datang, ${authController.userDisplayName}!',
                       style: AppTheme.heading3,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      authController.tenantName,
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Role: ${authController.userRole.toUpperCase()}',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -46,7 +76,7 @@ class DashboardPage extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
+            )),
             const SizedBox(height: 24),
             
             // Quick Actions

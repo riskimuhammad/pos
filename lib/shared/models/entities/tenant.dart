@@ -1,6 +1,14 @@
 import 'package:equatable/equatable.dart';
 
 class Tenant extends Equatable {
+  // Helper function to parse boolean from various types
+  static bool _parseBoolean(dynamic value, bool defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return defaultValue;
+  }
   final String id;
   final String name;
   final String? ownerName;
@@ -52,7 +60,7 @@ class Tenant extends Equatable {
       subscriptionExpiry: json['subscription_expiry'] != null
           ? DateTime.fromMillisecondsSinceEpoch(json['subscription_expiry'] as int)
           : null,
-      isActive: (json['is_active'] as int? ?? 1) == 1,
+      isActive: _parseBoolean(json['is_active'], true),
       logoUrl: json['logo_url'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(json['updated_at'] as int),
