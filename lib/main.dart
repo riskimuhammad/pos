@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/di/dependency_injection.dart';
+import 'core/localization/language_controller.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/middleware/auth_middleware.dart';
 import 'features/pos/presentation/pages/dashboard_page.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,12 +36,29 @@ class PosApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final LanguageController languageController = Get.find<LanguageController>();
+    
     return GetMaterialApp(
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
       defaultTransition: Transition.cupertino,
       transitionDuration: const Duration(milliseconds: 300),
+      
+      // Internationalization
+      locale: languageController.currentLocale.value,
+      fallbackLocale: const Locale('id', 'ID'),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('id', 'ID'), // Indonesian
+        Locale('en', 'US'), // English
+      ],
+      
       home: const SplashScreen(),
       getPages: [
         GetPage(
@@ -78,17 +98,21 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // Check if user has valid session
     try {
+      print('🔍 Debug - Main: Checking session...');
       final authController = Get.find<AuthController>();
       final hasSession = await authController.checkSession();
 
+      print('🔍 Debug - Main: Has session: $hasSession');
       if (hasSession) {
+        print('✅ Debug - Main: Redirecting to dashboard');
         Get.offNamed('/dashboard');
       } else {
+        print('❌ Debug - Main: Redirecting to login');
         Get.offNamed('/login');
       }
     } catch (e) {
       // If AuthController fails, go to login
-      debugPrint('Error during session check: $e');
+      print('❌ Debug - Main: Error during session check: $e');
       Get.offNamed('/login');
     }
   }

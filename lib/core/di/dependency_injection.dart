@@ -17,6 +17,8 @@ import 'package:pos/features/products/domain/usecases/get_products.dart';
 import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
+import 'package:pos/features/pos/presentation/controllers/dashboard_controller.dart';
+import 'package:pos/core/localization/language_controller.dart';
 
 class DependencyInjection {
   static Future<void> init() async {
@@ -48,8 +50,8 @@ class DependencyInjection {
     Get.lazyPut<CheckSessionUseCase>(() => CheckSessionUseCase(Get.find<AuthRepository>()));
     Get.lazyPut<HasValidSessionUseCase>(() => HasValidSessionUseCase(Get.find<AuthRepository>()));
 
-    // Auth controller
-    Get.lazyPut<AuthController>(() => AuthController(
+    // Auth controller - Use put instead of lazyPut for immediate initialization
+    Get.put<AuthController>(AuthController(
       loginUseCase: Get.find<LoginUseCase>(),
       logoutUseCase: Get.find<LogoutUseCase>(),
       checkSessionUseCase: Get.find<CheckSessionUseCase>(),
@@ -73,5 +75,11 @@ class DependencyInjection {
       createProduct: Get.find<CreateProduct>(),
       searchProducts: Get.find<SearchProducts>(),
     ));
+
+    // Dashboard controller
+    Get.lazyPut<DashboardController>(() => DashboardController());
+
+    // Language controller
+    Get.put<LanguageController>(LanguageController());
   }
 }

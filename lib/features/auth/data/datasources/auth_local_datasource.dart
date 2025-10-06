@@ -21,17 +21,28 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   Future<UserSession?> getCurrentSession() async {
     try {
       final sessionData = _storage.read('user_session');
-      if (sessionData == null) return null;
-      return UserSession.fromJson(Map<String, dynamic>.from(sessionData));
+      print('🔍 Debug - Session data from storage: $sessionData');
+      if (sessionData == null) {
+        print('❌ Debug - No session data found');
+        return null;
+      }
+      final session = UserSession.fromJson(Map<String, dynamic>.from(sessionData));
+      print('✅ Debug - Session loaded: ${session.user.username}, expires: ${session.expiresAt}, isValid: ${session.isValid}');
+      return session;
     } catch (e) {
+      print('❌ Debug - Error loading session: $e');
       return null;
     }
   }
 
   @override
   Future<void> saveSession(UserSession session) async {
-    await _storage.write('user_session', session.toJson());
+    final sessionJson = session.toJson();
+    print('💾 Debug - Saving session: ${session.user.username}, expires: ${session.expiresAt}');
+    print('💾 Debug - Session JSON: $sessionJson');
+    await _storage.write('user_session', sessionJson);
     await _storage.write(AppConstants.tokenKey, session.token);
+    print('✅ Debug - Session saved successfully');
   }
 
   @override
@@ -45,7 +56,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<bool> hasValidSession() async {
     final session = await getCurrentSession();
-    return session?.isValid ?? false;
+    final isValid = session?.isValid ?? false;
+    print('🔍 Debug - Has valid session: $isValid');
+    if (session != null) {
+      print('🔍 Debug - Session details: expires=${session.expiresAt}, now=${DateTime.now()}, isExpired=${session.isExpired}');
+    }
+    return isValid;
   }
 
   @override

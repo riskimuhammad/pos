@@ -2,6 +2,14 @@ import 'package:equatable/equatable.dart';
 import '../../../../shared/models/entities/entities.dart';
 
 class UserSession extends Equatable {
+  // Helper function to parse boolean from various types
+  static bool _parseBoolean(dynamic value, bool defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return defaultValue;
+  }
   final User user;
   final Tenant tenant;
   final String token;
@@ -75,7 +83,7 @@ class UserSession extends Equatable {
       refreshToken: json['refresh_token'] as String,
       expiresAt: DateTime.fromMillisecondsSinceEpoch(json['expires_at'] as int),
       loginAt: DateTime.fromMillisecondsSinceEpoch(json['login_at'] as int),
-      isActive: json['is_active'] as bool? ?? true,
+      isActive: _parseBoolean(json['is_active'], true),
     );
   }
 }

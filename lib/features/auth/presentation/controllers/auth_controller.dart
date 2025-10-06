@@ -225,10 +225,15 @@ class AuthController extends GetxController {
 
   // Method untuk check session dari main.dart
   Future<bool> checkSession() async {
+    print('🔍 Debug - AuthController.checkSession() called');
     final result = await hasValidSessionUseCase();
     return result.fold(
-      (failure) => false,
+      (failure) {
+        print('❌ Debug - Session check failed: ${failure.message}');
+        return false;
+      },
       (hasValidSession) {
+        print('🔍 Debug - Has valid session: $hasValidSession');
         if (hasValidSession) {
           _loadCurrentSession();
           return true;

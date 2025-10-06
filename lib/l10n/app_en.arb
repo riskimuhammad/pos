@@ -1,0 +1,254 @@
+{
+  "@@locale": "en",
+  
+  "appTitle": "POS UMKM",
+  "@appTitle": {
+    "description": "Application title"
+  },
+  
+  "welcome": "Welcome",
+  "@welcome": {
+    "description": "Welcome message"
+  },
+  
+  "login": "Login",
+  "@login": {
+    "description": "Login button text"
+  },
+  
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button text"
+  },
+  
+  "username": "Username or Email",
+  "@username": {
+    "description": "Username field label"
+  },
+  
+  "password": "Password",
+  "@password": {
+    "description": "Password field label"
+  },
+  
+  "forgotPassword": "Forgot Password?",
+  "@forgotPassword": {
+    "description": "Forgot password link"
+  },
+  
+  "dashboard": "Dashboard",
+  "@dashboard": {
+    "description": "Dashboard page title"
+  },
+  
+  "hello": "Hello, {name}!",
+  "@hello": {
+    "description": "Greeting message with name parameter",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "John"
+      }
+    }
+  },
+  
+  "today": "Today",
+  "@today": {
+    "description": "Today section title"
+  },
+  
+  "transactions": "Transactions",
+  "@transactions": {
+    "description": "Transactions label"
+  },
+  
+  "sales": "Sales",
+  "@sales": {
+    "description": "Sales label"
+  },
+  
+  "productsSold": "Products Sold",
+  "@productsSold": {
+    "description": "Products sold label"
+  },
+  
+  "average": "Average",
+  "@average": {
+    "description": "Average label"
+  },
+  
+  "quickActions": "Quick Actions",
+  "@quickActions": {
+    "description": "Quick actions section title"
+  },
+  
+  "scanBarcode": "Scan Barcode",
+  "@scanBarcode": {
+    "description": "Scan barcode button"
+  },
+  
+  "aiScan": "AI Scan",
+  "@aiScan": {
+    "description": "AI scan button"
+  },
+  
+  "mainMenu": "Main Menu",
+  "@mainMenu": {
+    "description": "Main menu section title"
+  },
+  
+  "pointOfSale": "Point of Sale",
+  "@pointOfSale": {
+    "description": "Point of sale menu item"
+  },
+  
+  "pointOfSaleDesc": "Sales transactions",
+  "@pointOfSaleDesc": {
+    "description": "Point of sale description"
+  },
+  
+  "products": "Products",
+  "@products": {
+    "description": "Products menu item"
+  },
+  
+  "productsDesc": "Manage products",
+  "@productsDesc": {
+    "description": "Products description"
+  },
+  
+  "inventory": "Inventory",
+  "@inventory": {
+    "description": "Inventory menu item"
+  },
+  
+  "inventoryDesc": "Manage stock",
+  "@inventoryDesc": {
+    "description": "Inventory description"
+  },
+  
+  "reports": "Reports",
+  "@reports": {
+    "description": "Reports menu item"
+  },
+  
+  "reportsDesc": "Analytics & reports",
+  "@reportsDesc": {
+    "description": "Reports description"
+  },
+  
+  "users": "Users",
+  "@users": {
+    "description": "Users menu item"
+  },
+  
+  "usersDesc": "Manage users",
+  "@usersDesc": {
+    "description": "Users description"
+  },
+  
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings menu item"
+  },
+  
+  "settingsDesc": "System configuration",
+  "@settingsDesc": {
+    "description": "Settings description"
+  },
+  
+  "aiFeatures": "AI Features",
+  "@aiFeatures": {
+    "description": "AI features section title"
+  },
+  
+  "aiProductDetection": "Product Detection with Camera",
+  "@aiProductDetection": {
+    "description": "AI product detection title"
+  },
+  
+  "aiProductDetectionDesc": "Scan products without barcode using AI technology. 80%+ accuracy for trained products.",
+  "@aiProductDetectionDesc": {
+    "description": "AI product detection description"
+  },
+  
+  "tryAiScan": "Try AI Scan",
+  "@tryAiScan": {
+    "description": "Try AI scan button"
+  },
+  
+  "info": "Info",
+  "@info": {
+    "description": "Info button"
+  },
+  
+  "recentActivity": "Recent Activity",
+  "@recentActivity": {
+    "description": "Recent activity section title"
+  },
+  
+  "newTransaction": "New Transaction",
+  "@newTransaction": {
+    "description": "New transaction button"
+  },
+  
+  "language": "Language",
+  "@language": {
+    "description": "Language setting"
+  },
+  
+  "indonesian": "Indonesian",
+  "@indonesian": {
+    "description": "Indonesian language option"
+  },
+  
+  "english": "English",
+  "@english": {
+    "description": "English language option"
+  },
+  
+  "currency": "Currency",
+  "@currency": {
+    "description": "Currency setting"
+  },
+  
+  "idr": "Indonesian Rupiah (IDR)",
+  "@idr": {
+    "description": "Indonesian Rupiah currency"
+  },
+  
+  "usd": "US Dollar (USD)",
+  "@usd": {
+    "description": "US Dollar currency"
+  },
+  
+  "notifications": "Notifications",
+  "@notifications": {
+    "description": "Notifications menu"
+  },
+  
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile menu"
+  },
+  
+  "help": "Help",
+  "@help": {
+    "description": "Help menu"
+  },
+  
+  "about": "About",
+  "@about": {
+    "description": "About menu"
+  },
+  
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile menu"
+  },
+  
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings menu"
+  }
+}
