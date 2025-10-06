@@ -19,7 +19,6 @@ import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
 import 'package:pos/features/pos/presentation/controllers/dashboard_controller.dart';
-import 'package:pos/features/ai_scan/presentation/controllers/ai_scan_controller.dart';
 import 'package:pos/features/ai_assistant/presentation/controllers/ai_assistant_controller.dart';
 import 'package:pos/core/sync/presentation/controllers/sync_controller.dart';
 import 'package:pos/core/sync/data/datasources/sync_local_datasource.dart';
@@ -28,10 +27,8 @@ import 'package:pos/core/sync/data/repositories/sync_repository_impl.dart';
 import 'package:pos/core/sync/domain/repositories/sync_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:pos/core/localization/language_controller.dart';
-import 'package:pos/core/ai/model_manager.dart';
 import 'package:pos/core/ai/ai_data_service.dart';
 // import 'package:pos/core/ai/yolo_detector.dart';
-import 'package:pos/core/ai/local_product_detector.dart';
 import 'package:pos/core/ai/sales_predictor.dart';
 import 'package:pos/core/ai/price_recommender.dart';
 import 'package:pos/core/ai/warung_assistant.dart';
@@ -103,8 +100,7 @@ class DependencyInjection {
     // Dashboard controller
     Get.lazyPut<DashboardController>(() => DashboardController());
 
-    // AI Scan controller
-    Get.lazyPut<AIScanController>(() => AIScanController());
+    // AI Scan removed
     
     // AI Assistant controller
     Get.lazyPut<AIAssistantController>(() => AIAssistantController());
@@ -124,12 +120,7 @@ class DependencyInjection {
     ));
 
     // AI services
-    Get.lazyPut<AIModelManager>(() => AIModelManager(dio: Get.find<Dio>(), storage: Get.find<GetStorage>()));
     Get.lazyPut<AIDataService>(() => AIDataService(database: Get.find<Database>()));
-    // YOLO disabled in local-only mode
-    Get.lazyPut<LocalProductDetector>(() => LocalProductDetector(
-      databaseHelper: Get.find<DatabaseHelper>(),
-    ));
     
     // AI Warung Assistant services
     Get.lazyPut<SalesPredictor>(() => SalesPredictor(

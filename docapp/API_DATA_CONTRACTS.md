@@ -276,7 +276,7 @@ GET /api/ai/product-recommendations?limit={limit}
 
 ### Endpoint
 ```
-GET /api/ai/price-review-items
+GET /api/ai/price-review-items?region_code={region}&horizon_days={days}&include_regional_avg=true
 ```
 
 ### Response Data Contract
@@ -293,7 +293,11 @@ GET /api/ai/price-review-items
     "issues": [
       "Low margin compared to similar products",
       "No sales in the last 3 days"
-    ]
+    ],
+    "regional_avg_price": 16000.0,
+    "suggested_price": 16500.0,
+    "expected_margin_percent": 39.4,
+    "price_delta": 1500.0
   }
 ]
 ```
@@ -314,7 +318,7 @@ GET /api/ai/price-review-items
 
 ### Endpoint
 ```
-GET /api/ai/daily-insight
+GET /api/ai/daily-insight?region_code={region}&coverage_days=true
 ```
 
 ### Response Data Contract
@@ -339,7 +343,10 @@ GET /api/ai/daily-insight
       "product_id": "prod_456",
       "product_name": "Es Teh Manis",
       "current_stock": 5,
-      "min_stock": 10
+      "min_stock": 10,
+      "daily_usage": 3,
+      "coverage_days": 1,
+      "suggested_restock_qty": 15
     }
   ],
   "weekly_trend": "increasing",
@@ -450,7 +457,7 @@ GET /api/ai/business-forecast?days={daysAhead}
 
 ### Endpoint
 ```
-GET /api/ai/business-recommendations
+GET /api/ai/business-recommendations?top_n=3&restock_policy=percent_of_sales&percent=0.2
 ```
 
 ### Response Data Contract

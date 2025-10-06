@@ -36,9 +36,9 @@ class DashboardController extends GetxController {
       
       // Mock data for today's stats
       todayTransactions.value = 24;
-      todaySales.value = 2400000.0; // Rp 2.4M
+      todaySales.value = 2400000.0; // 2.4M
       todayProductsSold.value = 156;
-      averageTransaction.value = 100000.0; // Rp 100K
+      averageTransaction.value = 100000.0; // 100K
       
     } catch (e) {
       Get.snackbar(
@@ -59,7 +59,7 @@ class DashboardController extends GetxController {
           'id': '1',
           'type': 'transaction',
           'title': 'Transaksi #TRX001',
-          'subtitle': 'Rp 150.000',
+          'subtitle': formatCurrency(150000.0),
           'time': '2 menit yang lalu',
           'icon': 'receipt_long',
           'color': 'success',
@@ -187,20 +187,7 @@ class DashboardController extends GetxController {
     );
   }
 
-  // Open barcode scanner
-  void openBarcodeScanner() {
-    // TODO: Implement barcode scanner
-    Get.snackbar(
-      'Info',
-      'Scanner barcode akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
-    );
-  }
-
-  // Open AI camera scan
-  void openAICameraScan() {
-    Get.toNamed('/ai-scan');
-  }
+  // Barcode scanner will be in transaction flow via device connection later
 
   // Navigate to AI Assistant
   void navigateToAIAssistant() {
@@ -230,23 +217,11 @@ class DashboardController extends GetxController {
             ),
             SizedBox(height: 16),
             Text(
-              '📷 AI Scan Produk',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            SizedBox(height: 8),
-            Text(
-              '• Scan produk tanpa barcode menggunakan teknologi AI\n'
-              '• Learning dari input user untuk akurasi yang meningkat\n'
-              '• Local-first detection untuk kecepatan optimal\n'
-              '• Fallback ke training data jika tidak terdeteksi',
-            ),
-            SizedBox(height: 16),
-            Text(
               'Teknologi:',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 4),
-            Text('• Machine Learning & Statistical Analysis\n• Local Feature Extraction\n• Trend Analysis & Forecasting'),
+            Text('• Machine Learning & Statistical Analysis\n• Trend Analysis & Forecasting\n• Local-first data processing dengan opsi API'),
           ],
         ),
         actions: [

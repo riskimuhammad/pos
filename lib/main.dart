@@ -11,7 +11,6 @@ import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/middleware/auth_middleware.dart';
 import 'features/pos/presentation/pages/dashboard_page.dart';
-import 'features/ai_scan/presentation/pages/ai_scan_page.dart';
 import 'features/ai_assistant/presentation/pages/ai_assistant_page.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -75,12 +74,7 @@ class PosApp extends StatelessWidget {
           transition: Transition.fadeIn,
           middlewares: [AuthMiddleware()],
         ),
-        GetPage(
-          name: '/ai-scan',
-          page: () => const AIScanPage(),
-          transition: Transition.rightToLeft,
-          middlewares: [AuthMiddleware()],
-        ),
+        // AI Scan route removed
         GetPage(
           name: '/ai-assistant',
           page: () => const AIAssistantPage(),

@@ -29,6 +29,7 @@ class AIAssistantController extends GetxController with GetSingleTickerProviderS
     salesPredictor = Get.find<SalesPredictor>();
     priceRecommender = Get.find<PriceRecommender>();
     
+    // Always load using local services; services may use API if enabled
     loadDailyInsight();
   }
 
@@ -246,4 +247,6 @@ class AIAssistantController extends GetxController with GetSingleTickerProviderS
   void clearError() {
     errorMessage.value = '';
   }
+
+  // Mock data loader removed; controller now relies on services/local DB
 }

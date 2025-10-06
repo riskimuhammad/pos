@@ -144,9 +144,12 @@ class DatabaseHelper {
         tenant_id TEXT NOT NULL,
         sku TEXT NOT NULL,
         name TEXT NOT NULL,
+        brand TEXT,
+        variant TEXT,
+        pack_size TEXT,
+        uom TEXT DEFAULT 'pcs',
         category_id TEXT,
         description TEXT,
-        unit TEXT DEFAULT 'pcs',
         price_buy REAL DEFAULT 0,
         price_sell REAL NOT NULL,
         weight REAL,
@@ -155,6 +158,8 @@ class DatabaseHelper {
         is_expirable INTEGER DEFAULT 0,
         is_active INTEGER DEFAULT 1,
         min_stock INTEGER DEFAULT 0,
+        reorder_point INTEGER DEFAULT 0,
+        reorder_qty INTEGER DEFAULT 0,
         photos TEXT,
         attributes TEXT,
         created_at INTEGER NOT NULL,
@@ -265,6 +270,7 @@ class DatabaseHelper {
         location_id TEXT NOT NULL,
         type TEXT NOT NULL,
         quantity INTEGER NOT NULL,
+        cost_price REAL DEFAULT 0,
         reference_type TEXT,
         reference_id TEXT,
         notes TEXT,
@@ -279,19 +285,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // AI scans table
-    await db.execute('''
-      CREATE TABLE ai_scans (
-        id TEXT PRIMARY KEY,
-        image_path TEXT NOT NULL,
-        predicted_label TEXT,
-        confidence REAL,
-        chosen_product_label TEXT,
-        created_at INTEGER NOT NULL,
-        synced_at INTEGER,
-        sync_status TEXT DEFAULT 'pending'
-      )
-    ''');
+    // AI scans table removed
 
     // AI training samples table (user-labeled images)
     await db.execute('''
@@ -317,6 +311,25 @@ class DatabaseHelper {
         sync_status TEXT DEFAULT 'pending',
         error_message TEXT,
         FOREIGN KEY (product_id) REFERENCES products (id)
+      )
+    ''');
+
+    // Regional price table
+    await db.execute('''
+      CREATE TABLE regional_price (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        region_code TEXT NOT NULL,
+        avg_price REAL NOT NULL,
+        min_price REAL,
+        max_price REAL,
+        sample_count INTEGER DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        sync_status TEXT DEFAULT 'synced',
+        last_synced_at INTEGER,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        FOREIGN KEY (product_id) REFERENCES products(id)
       )
     ''');
 
@@ -367,7 +380,7 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX idx_transactions_created ON transactions(created_at DESC)');
     await db.execute('CREATE INDEX idx_sync_queue_status ON sync_queue(is_synced, timestamp)');
     await db.execute('CREATE INDEX idx_sync_queue_table ON sync_queue(table_name, is_synced)');
-    await db.execute('CREATE INDEX idx_ai_scans_status ON ai_scans(sync_status, created_at)');
+    // index for ai_scans removed
     await db.execute('CREATE INDEX idx_ai_training_samples_status ON ai_training_samples(sync_status, created_at)');
   }
 
@@ -515,6 +528,64 @@ class DatabaseHelper {
           )
         ''');
       }
+    }
+    // Migration to version 4: add product details, stock_movements.cost_price, regional_price
+    if (oldVersion < 4) {
+      // Products new columns
+      final cols = await db.rawQuery("PRAGMA table_info(products)");
+      final colNames = cols.map((e) => e['name'] as String).toSet();
+      if (!colNames.contains('brand')) {
+        await db.execute("ALTER TABLE products ADD COLUMN brand TEXT");
+      }
+      if (!colNames.contains('variant')) {
+        await db.execute("ALTER TABLE products ADD COLUMN variant TEXT");
+      }
+      if (!colNames.contains('pack_size')) {
+        await db.execute("ALTER TABLE products ADD COLUMN pack_size TEXT");
+      }
+      if (!colNames.contains('uom')) {
+        await db.execute("ALTER TABLE products ADD COLUMN uom TEXT DEFAULT 'pcs'");
+      }
+      if (!colNames.contains('reorder_point')) {
+        await db.execute("ALTER TABLE products ADD COLUMN reorder_point INTEGER DEFAULT 0");
+      }
+      if (!colNames.contains('reorder_qty')) {
+        await db.execute("ALTER TABLE products ADD COLUMN reorder_qty INTEGER DEFAULT 0");
+      }
+
+      // Stock movements new column
+      final smCols = await db.rawQuery("PRAGMA table_info(stock_movements)");
+      final smColNames = smCols.map((e) => e['name'] as String).toSet();
+      if (!smColNames.contains('cost_price')) {
+        await db.execute("ALTER TABLE stock_movements ADD COLUMN cost_price REAL DEFAULT 0");
+      }
+
+      // Regional price table create if missing
+      final rp = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='regional_price'");
+      if (rp.isEmpty) {
+        await db.execute('''
+          CREATE TABLE regional_price (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            region_code TEXT NOT NULL,
+            avg_price REAL NOT NULL,
+            min_price REAL,
+            max_price REAL,
+            sample_count INTEGER DEFAULT 0,
+            updated_at INTEGER NOT NULL,
+            sync_status TEXT DEFAULT 'synced',
+            last_synced_at INTEGER,
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+          )
+        ''');
+      }
+    }
+    // Drop legacy ai_scans table if exists
+    final scans = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='ai_scans'");
+    if (scans.isNotEmpty) {
+      await db.execute('DROP TABLE IF EXISTS ai_scans');
     }
   }
 

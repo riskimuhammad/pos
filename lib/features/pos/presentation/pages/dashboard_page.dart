@@ -264,22 +264,14 @@ class DashboardPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Today's Stats
-                  _buildTodayStats(context),
-                  const SizedBox(height: 24),
-
-                  // Quick Actions
-                  _buildQuickActions(),
-                  const SizedBox(height: 24),
-
-                  // Main Menu Grid
-                  _buildMainMenuGrid(),
-                  const SizedBox(height: 24),
-
                   // AI Features Section
                   _buildAIFeaturesSection(),
                   const SizedBox(height: 24),
-
+                  // Today's Stats
+                  _buildTodayStats(context),
+                  const SizedBox(height: 24),
+                  // Main Menu Grid
+                  _buildMainMenuGrid(),
                   // Recent Activity
                   _buildRecentActivity(),
                 ],
@@ -407,44 +399,7 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions() {
-    final DashboardController dashboardController = Get.find<DashboardController>();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Aksi Cepat',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionButton(
-                'Scan Barcode',
-                Icons.qr_code_scanner,
-                AppTheme.primaryColor,
-                dashboardController.openBarcodeScanner,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionButton(
-                'AI Scan',
-                Icons.camera_alt,
-                AppTheme.secondaryColor,
-                dashboardController.openAICameraScan,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // Quick Actions removed
 
   Widget _buildQuickActionButton(String title, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
@@ -504,7 +459,6 @@ class DashboardPage extends StatelessWidget {
             color: AppTheme.textPrimary,
           ),
         ),
-        const SizedBox(height: 16),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -670,7 +624,7 @@ class DashboardPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Prediksi penjualan, rekomendasi harga, dan insight bisnis cerdas untuk mengoptimalkan keuntungan warung Anda.',
+            'Prediksi penjualan & stok, rekomendasi harga dan produk laris, serta insight bisnis harian untuk memaksimalkan keuntungan.',
             style: TextStyle(
               fontSize: 14,
               color: AppTheme.textSecondary,
@@ -694,20 +648,7 @@ class DashboardPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: dashboardController.openAICameraScan,
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                  label: const Text('AI Scan'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryColor,
-                    side: BorderSide(color: AppTheme.primaryColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
+            // Removed AI Scan button
             ],
           ),
           const SizedBox(height: 12),

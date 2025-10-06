@@ -5,6 +5,7 @@ import 'package:pos/core/ai/warung_assistant.dart';
 import 'package:pos/core/ai/sales_predictor.dart';
 import 'package:pos/core/ai/price_recommender.dart';
 import '../controllers/ai_assistant_controller.dart';
+import 'package:pos/core/localization/language_controller.dart';
 
 class AIAssistantPage extends StatefulWidget {
   const AIAssistantPage({super.key});
@@ -16,12 +17,33 @@ class AIAssistantPage extends StatefulWidget {
 class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderStateMixin {
   late TabController _tabController;
   late AIAssistantController _controller;
+  late LanguageController _languageController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
-    _controller = Get.put(AIAssistantController());
+    if (Get.isRegistered<AIAssistantController>()) {
+      _controller = Get.find<AIAssistantController>();
+    } else {
+      _controller = Get.put(AIAssistantController());
+    }
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      final tabs = ['insight', 'performance', 'forecast', 'recommendations', 'products', 'pricing'];
+      _controller.changeTab(tabs[_tabController.index]);
+    });
+    // ensure language controller
+    if (Get.isRegistered<LanguageController>()) {
+      _languageController = Get.find<LanguageController>();
+    } else {
+      _languageController = Get.put(LanguageController());
+    }
+
+    // trigger initial load for default tab
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.changeTab('insight');
+    });
   }
 
   @override
@@ -120,6 +142,8 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
     );
   }
 
+  String _money(num value) => _languageController.formatCurrency(value.toDouble());
+
   Widget _buildInsightTab(AIAssistantController controller) {
     return Obx(() {
       final insight = controller.dailyInsight.value;
@@ -143,6 +167,8 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
             // Low Stock Alert
             if (insight.lowStockItems.isNotEmpty) ...[
               _buildLowStockCard(insight.lowStockItems),
+            const SizedBox(height: 16),
+            _buildLowStockDetailCard(insight.lowStockItems),
               const SizedBox(height: 16),
             ],
             
@@ -217,13 +243,14 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
         return const Center(child: Text('No recommendations available'));
       }
 
-      return ListView.builder(
+      return ListView(
         padding: const EdgeInsets.all(16),
-        itemCount: recommendations.length,
-        itemBuilder: (context, index) {
-          final rec = recommendations[index];
-          return _buildRecommendationCard(rec);
-        },
+        children: [
+          // Restock top 3 items with details
+          _buildRestockTop3Card(controller),
+          const SizedBox(height: 16),
+          ...List.generate(recommendations.length, (index) => _buildRecommendationCard(recommendations[index])),
+        ],
       );
     });
   }
@@ -299,7 +326,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                 Expanded(
                   child: _buildMetricItem(
                     'Revenue',
-                    'Rp ${insight.todaySales.totalRevenue.toInt()}',
+                    _money(insight.todaySales.totalRevenue),
                     Icons.attach_money,
                     AppTheme.successColor,
                   ),
@@ -307,7 +334,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                 Expanded(
                   child: _buildMetricItem(
                     'Rata-rata',
-                    'Rp ${insight.todaySales.avgTransactionValue.toInt()}',
+                    _money(insight.todaySales.avgTransactionValue),
                     Icons.trending_up,
                     AppTheme.warningColor,
                   ),
@@ -381,7 +408,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                 title: Text(product.productName ?? 'Unknown'),
                 subtitle: Text('${product.quantitySold ?? 0} terjual'),
                 trailing: Text(
-                  'Rp ${(product.revenue ?? 0).toInt()}',
+                  _money(product.revenue ?? 0),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.successColor,
@@ -497,7 +524,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                 Expanded(
                   child: _buildMetricItem(
                     'Prediksi Revenue',
-                    'Rp ${forecast.predictedRevenue.toInt()}',
+                    _money(forecast.predictedRevenue),
                     Icons.attach_money,
                     AppTheme.successColor,
                   ),
@@ -649,14 +676,14 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Rp ${(product.totalRevenue ?? 0).toInt()}',
+                      _money(product.totalRevenue ?? 0),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.successColor,
                       ),
                     ),
                     Text(
-                      'Rp ${(product.avgPrice ?? 0).toInt()}',
+                      _money(product.avgPrice ?? 0),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -708,7 +735,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                 title: Text(category.categoryName ?? 'Unknown'),
                 subtitle: Text('${category.productCount ?? 0} produk'),
                 trailing: Text(
-                  'Rp ${(category.totalRevenue ?? 0).toInt()}',
+                  _money(category.totalRevenue ?? 0),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.successColor,
@@ -740,8 +767,23 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Harga: Rp ${item.currentPrice.toInt()}'),
-            Text('Cost: Rp ${item.costPrice.toInt()}'),
+            Text('Harga: ${_money(item.currentPrice)}'),
+            Text('Cost: ${_money(item.costPrice)}'),
+            const SizedBox(height: 4),
+            // Regional average (mock) and suggestion
+            Builder(builder: (context) {
+              final regionalAvg = (item.currentPrice * 1.08);
+              final suggested = ((item.currentPrice + regionalAvg) / 2);
+              final increase = (suggested - item.currentPrice);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Rata-rata daerah: ${_money(regionalAvg)}', style: TextStyle(color: Colors.grey[700], fontSize: 12)),
+                  Text('Saran harga: ${_money(suggested)} (+${_money(increase)})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text('Prediksi dampak: margin naik ~${((suggested - item.costPrice) / suggested * 100).toInt()}%', style: TextStyle(color: AppTheme.primaryColor, fontSize: 12)),
+                ],
+              );
+            }),
             if (item.issues.isNotEmpty)
               Text(
                 item.issues.join(', '),
@@ -756,6 +798,114 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
         onTap: () {
           // TODO: Navigate to price review detail
         },
+      ),
+    );
+  }
+
+  Widget _buildLowStockDetailCard(List<LowStockItem> items) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.inventory_2, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Detail Stok Rendah',
+                  style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...items.map((item) {
+              final current = item.currentStock ?? 0;
+              final minStock = item.minStock ?? 0;
+              final deficit = (minStock - current).clamp(0, 1 << 31);
+              // Mock daily consumption for estimate
+              final estDailyUse = 3; // dev-only assumption
+              final daysCoverage = estDailyUse == 0 ? 0 : (current / estDailyUse).floor();
+              final targetBuffer = (minStock * 2);
+              final restockQty = (targetBuffer - current).clamp(0, 1 << 31);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.productName ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text('Stok: $current • Min: $minStock • Selisih: $deficit', style: TextStyle(color: Colors.grey[700], fontSize: 12)),
+                          Text('Perkiraan cukup: $daysCoverage hari', style: TextStyle(color: Colors.grey[700], fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('Saran Restock', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text('$restockQty pcs', style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRestockTop3Card(AIAssistantController controller) {
+    final top = controller.topProducts.take(3).toList();
+    if (top.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.local_shipping, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Tingkatkan Stok: 3 Item Terlaris',
+                  style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...top.map((p) {
+              final qty = p.totalQuantity ?? 0;
+              // Mock restock qty suggestion: 20% of 30-day sales, rounded
+              final suggestion = ((qty * 0.2)).clamp(5, 200).toInt();
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(p.productName ?? 'Unknown'),
+                subtitle: Text('${p.categoryName ?? 'Kategori'} • ${p.transactionCount ?? 0} transaksi'),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Saran Restock', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('$suggestion pcs', style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -831,7 +981,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                 title: Text(category.categoryName ?? 'Unknown'),
                 subtitle: Text('${category.productCount ?? 0} produk'),
                 trailing: Text(
-                  'Rp ${(category.revenue ?? 0).toInt()}',
+                  _money(category.revenue ?? 0),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.successColor,
