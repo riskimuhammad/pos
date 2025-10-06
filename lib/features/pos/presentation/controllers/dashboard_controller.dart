@@ -199,12 +199,7 @@ class DashboardController extends GetxController {
 
   // Open AI camera scan
   void openAICameraScan() {
-    // TODO: Implement AI camera scan
-    Get.snackbar(
-      'Info',
-      'AI Camera Scan akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
-    );
+    Get.toNamed('/ai-scan');
   }
 
   // Show AI features info

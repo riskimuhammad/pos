@@ -5,6 +5,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../../../shared/widgets/language_switcher.dart';
+import '../../../../shared/widgets/sync_status_indicator.dart';
+import '../../../../shared/widgets/manual_sync_button.dart';
+import '../../../../shared/widgets/sync_details_dialog.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -147,6 +150,26 @@ class DashboardPage extends StatelessWidget {
               ),
             ),
             actions: [
+              // Sync Status Indicator
+              Container(
+                margin: const EdgeInsets.only(right: 4),
+                child: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const SyncStatusIndicator(
+                      showText: false,
+                      iconSize: 20,
+                    ),
+                  ),
+                  onPressed: () {
+                    Get.dialog(const SyncDetailsDialog());
+                  },
+                ),
+              ),
               // Language Switcher
               Container(
                 margin: const EdgeInsets.only(right: 8),

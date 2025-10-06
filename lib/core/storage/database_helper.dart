@@ -60,12 +60,12 @@ class DatabaseHelper {
 
   Future<void> _onOpen(Database db) async {
     try {
-      // Enable foreign keys
-      await db.execute('PRAGMA foreign_keys = ON');
-      // Set journal mode
-      await db.execute('PRAGMA journal_mode = WAL');
+      // Enable foreign keys (use rawQuery for PRAGMA with SQLCipher)
+      await db.rawQuery('PRAGMA foreign_keys = ON');
+      // SQLCipher: prefer DELETE journal mode for compatibility
+      await db.rawQuery('PRAGMA journal_mode = DELETE');
       // Set synchronous mode
-      await db.execute('PRAGMA synchronous = NORMAL');
+      await db.rawQuery('PRAGMA synchronous = NORMAL');
     } catch (e) {
       throw app_exceptions.DatabaseException(message: 'Failed to configure database: $e');
     }
@@ -279,22 +279,69 @@ class DatabaseHelper {
       )
     ''');
 
-    // Sync queue table
+    // AI scans table
+    await db.execute('''
+      CREATE TABLE ai_scans (
+        id TEXT PRIMARY KEY,
+        image_path TEXT NOT NULL,
+        predicted_label TEXT,
+        confidence REAL,
+        chosen_product_label TEXT,
+        created_at INTEGER NOT NULL,
+        synced_at INTEGER,
+        sync_status TEXT DEFAULT 'pending'
+      )
+    ''');
+
+    // AI training samples table (user-labeled images)
+    await db.execute('''
+      CREATE TABLE ai_training_samples (
+        id TEXT PRIMARY KEY,
+        image_path TEXT NOT NULL,
+        label TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        synced_at INTEGER,
+        sync_status TEXT DEFAULT 'pending'
+      )
+    ''');
+
+    // AI learning samples table (for local learning from user feedback)
+    await db.execute('''
+      CREATE TABLE ai_learning_samples (
+        id TEXT PRIMARY KEY,
+        image_path TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        features TEXT,
+        confidence REAL,
+        timestamp INTEGER NOT NULL,
+        sync_status TEXT DEFAULT 'pending',
+        error_message TEXT,
+        FOREIGN KEY (product_id) REFERENCES products (id)
+      )
+    ''');
+
+    // Sync queue table (updated schema)
     await db.execute('''
       CREATE TABLE sync_queue (
         id TEXT PRIMARY KEY,
-        entity_type TEXT NOT NULL,
-        entity_id TEXT NOT NULL,
+        table_name TEXT NOT NULL,
         operation TEXT NOT NULL,
-        payload TEXT NOT NULL,
-        priority INTEGER DEFAULT 5,
+        data TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        is_synced INTEGER DEFAULT 0,
         retry_count INTEGER DEFAULT 0,
-        max_retries INTEGER DEFAULT 3,
-        status TEXT DEFAULT 'pending',
-        error_message TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        next_retry_at INTEGER
+        error_message TEXT
+      )
+    ''');
+
+    // Sync status table
+    await db.execute('''
+      CREATE TABLE sync_status (
+        id TEXT PRIMARY KEY,
+        last_sync_timestamp INTEGER NOT NULL,
+        sync_version TEXT NOT NULL,
+        is_online INTEGER DEFAULT 0,
+        pending_items_count INTEGER DEFAULT 0
       )
     ''');
 
@@ -318,7 +365,10 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX idx_inventory_product_location ON inventory(product_id, location_id)');
     await db.execute('CREATE INDEX idx_transactions_tenant ON transactions(tenant_id)');
     await db.execute('CREATE INDEX idx_transactions_created ON transactions(created_at DESC)');
-    await db.execute('CREATE INDEX idx_sync_queue_status ON sync_queue(status, priority, created_at)');
+    await db.execute('CREATE INDEX idx_sync_queue_status ON sync_queue(is_synced, timestamp)');
+    await db.execute('CREATE INDEX idx_sync_queue_table ON sync_queue(table_name, is_synced)');
+    await db.execute('CREATE INDEX idx_ai_scans_status ON ai_scans(sync_status, created_at)');
+    await db.execute('CREATE INDEX idx_ai_training_samples_status ON ai_training_samples(sync_status, created_at)');
   }
 
   Future<void> _createTriggers(Database db) async {
@@ -422,11 +472,50 @@ class DatabaseHelper {
   }
 
   Future<void> _migrateDatabase(Database db, int oldVersion, int newVersion) async {
-    // Add migration logic here when needed
-    // Example:
-    // if (oldVersion < 2) {
-    //   await db.execute('ALTER TABLE products ADD COLUMN new_field TEXT');
-    // }
+    // Migration from version 1 to 2: Add AI training samples table
+    if (oldVersion < 2) {
+      // Check if ai_training_samples table exists, if not create it
+      final result = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='ai_training_samples'"
+      );
+      
+      if (result.isEmpty) {
+        await db.execute('''
+          CREATE TABLE ai_training_samples (
+            id TEXT PRIMARY KEY,
+            image_path TEXT NOT NULL,
+            label TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            synced_at INTEGER,
+            sync_status TEXT DEFAULT 'pending'
+          )
+        ''');
+        
+        // Create index for the new table
+        await db.execute('CREATE INDEX idx_ai_training_samples_status ON ai_training_samples(sync_status, created_at)');
+      }
+    }
+    // Migration to version 3: Ensure ai_learning_samples exists
+    if (oldVersion < 3) {
+      final result = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='ai_learning_samples'"
+      );
+      if (result.isEmpty) {
+        await db.execute('''
+          CREATE TABLE ai_learning_samples (
+            id TEXT PRIMARY KEY,
+            image_path TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            features TEXT,
+            confidence REAL,
+            timestamp INTEGER NOT NULL,
+            sync_status TEXT DEFAULT 'pending',
+            error_message TEXT,
+            FOREIGN KEY (product_id) REFERENCES products (id)
+          )
+        ''');
+      }
+    }
   }
 
   Future<void> close() async {

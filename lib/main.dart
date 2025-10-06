@@ -11,6 +11,7 @@ import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/middleware/auth_middleware.dart';
 import 'features/pos/presentation/pages/dashboard_page.dart';
+import 'features/ai_scan/presentation/pages/ai_scan_page.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 void main() async {
@@ -71,6 +72,12 @@ class PosApp extends StatelessWidget {
           name: '/dashboard',
           page: () => const DashboardPage(),
           transition: Transition.fadeIn,
+          middlewares: [AuthMiddleware()],
+        ),
+        GetPage(
+          name: '/ai-scan',
+          page: () => const AIScanPage(),
+          transition: Transition.rightToLeft,
           middlewares: [AuthMiddleware()],
         ),
       ],

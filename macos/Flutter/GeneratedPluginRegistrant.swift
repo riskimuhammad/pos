@@ -5,7 +5,6 @@
 import FlutterMacOS
 import Foundation
 
-import blue_thermal_printer
 import connectivity_plus
 import device_info_plus
 import file_selector_macos
@@ -18,7 +17,6 @@ import sqflite_sqlcipher
 import url_launcher_macos
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
-  BlueThermalPrinterPlugin.register(with: registry.registrar(forPlugin: "BlueThermalPrinterPlugin"))
   ConnectivityPlugin.register(with: registry.registrar(forPlugin: "ConnectivityPlugin"))
   DeviceInfoPlusMacosPlugin.register(with: registry.registrar(forPlugin: "DeviceInfoPlusMacosPlugin"))
   FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))

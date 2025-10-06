@@ -5,7 +5,7 @@ class AppConstants {
   
   // Database
   static const String databaseName = 'pos_umkm.db';
-  static const int databaseVersion = 1;
+  static const int databaseVersion = 3;
   static const String databasePassword = 'pos_umkm_2024';
   
   // API
@@ -38,8 +38,10 @@ class AppConstants {
   static const String receiptFont = 'monospace';
   
   // ML
-  static const String modelPath = 'assets/models/product_detection.tflite';
+  static const String defaultModelManifestUrl = 'https://your-server.com/model_manifest.json';
   static const double minConfidenceThreshold = 0.7;
+  // Local-first AI toggle: if false, skip YOLO and model download
+  static const bool enableYoloDetection = false;
   
   // Pagination
   static const int defaultPageSize = 20;
