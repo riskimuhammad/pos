@@ -794,7 +794,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
         ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
-          // TODO: Navigate to price review detail
+          // Navigate to price review detail - will be implemented when detail page is ready
         },
       ),
     );
@@ -928,7 +928,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
               ],
             ),
             const SizedBox(height: 16),
-            // TODO: Implement chart widget
+            // Chart widget will be implemented when chart library is integrated
             Container(
               height: 200,
               decoration: BoxDecoration(

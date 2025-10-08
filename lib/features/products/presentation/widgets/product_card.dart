@@ -3,6 +3,7 @@ import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/core/localization/language_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:get/get.dart';
+import 'package:pos/features/products/presentation/controllers/product_controller.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -179,39 +180,68 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _buildStockIndicator() {
-    Color stockColor;
-    String stockText;
-    
-    // Get stock from inventory or use minStock as fallback
-    final currentStock = product.attributes['current_stock'] as int? ?? product.minStock;
-    final reorderPoint = product.attributes['reorder_point'] as int? ?? product.minStock;
-    
-    if (currentStock <= 0) {
-      stockColor = Colors.red;
-      stockText = 'Habis';
-    } else if (currentStock <= reorderPoint) {
-      stockColor = Colors.orange;
-      stockText = '$currentStock';
-    } else {
-      stockColor = AppTheme.successColor;
-      stockText = '$currentStock';
-    }
-    
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: stockColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: stockColor.withOpacity(0.3)),
-      ),
-      child: Text(
-        stockText,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: stockColor,
-        ),
-      ),
+    return FutureBuilder<int>(
+      future: _getCurrentStock(),
+      builder: (context, snapshot) {
+        Color stockColor;
+        String stockText;
+        
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          stockColor = Colors.grey;
+          stockText = '...';
+        } else if (snapshot.hasError) {
+          stockColor = Colors.grey;
+          stockText = 'N/A';
+        } else {
+          final currentStock = snapshot.data ?? 0;
+          final reorderPoint = product.attributes['reorder_point'] as int? ?? product.minStock;
+          
+          if (currentStock <= 0) {
+            // Check if this is a new product (created recently)
+            final isNewProduct = DateTime.now().difference(product.createdAt).inDays < 1;
+            if (isNewProduct) {
+              stockColor = Colors.blue;
+              stockText = 'Baru';
+            } else {
+              stockColor = Colors.red;
+              stockText = 'Habis';
+            }
+          } else if (currentStock <= reorderPoint) {
+            stockColor = Colors.orange;
+            stockText = '$currentStock';
+          } else {
+            stockColor = AppTheme.successColor;
+            stockText = '$currentStock';
+          }
+        }
+        
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: stockColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: stockColor.withOpacity(0.3)),
+          ),
+          child: Text(
+            stockText,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: stockColor,
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  Future<int> _getCurrentStock() async {
+    try {
+      final productController = Get.find<ProductController>();
+      return await productController.getCurrentStock(product.id);
+    } catch (e) {
+      print('❌ Error getting current stock in ProductCard: $e');
+      return 0;
+    }
   }
 }

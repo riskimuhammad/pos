@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:equatable/equatable.dart';
 
 class Tenant extends Equatable {
@@ -54,7 +55,9 @@ class Tenant extends Equatable {
       phone: json['phone'] as String?,
       address: json['address'] as String?,
       settings: json['settings'] != null 
-          ? Map<String, dynamic>.from(json['settings'] as Map)
+          ? (json['settings'] is String 
+              ? Map<String, dynamic>.from(jsonDecode(json['settings'] as String))
+              : Map<String, dynamic>.from(json['settings'] as Map))
           : {},
       subscriptionTier: json['subscription_tier'] as String? ?? 'free',
       subscriptionExpiry: json['subscription_expiry'] != null
@@ -82,7 +85,7 @@ class Tenant extends Equatable {
       'email': email,
       'phone': phone,
       'address': address,
-      'settings': settings,
+      'settings': jsonEncode(settings), // Convert Map to JSON string for SQLite
       'subscription_tier': subscriptionTier,
       'subscription_expiry': subscriptionExpiry?.millisecondsSinceEpoch,
       'is_active': isActive ? 1 : 0,

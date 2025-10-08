@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:sqflite_sqlcipher/sqflite.dart' as sqlite;
 import 'package:pos/core/storage/database_helper.dart';
 import 'package:pos/shared/models/entities/entities.dart';
@@ -26,6 +27,16 @@ abstract class LocalDataSource {
   Future<Category> updateCategory(Category category);
   Future<void> deleteCategory(String id);
 
+  // Unit operations
+  Future<Unit> createUnit(Unit unit);
+  Future<Unit?> getUnit(String id);
+  Future<List<Unit>> getUnits();
+  Future<List<Unit>> getUnitsByTenant(String tenantId);
+  Future<List<Unit>> searchUnits(String query);
+  Future<bool> unitNameExists(String name, {String? excludeId});
+  Future<Unit> updateUnit(Unit unit);
+  Future<void> deleteUnit(String id);
+
   // Product operations
   Future<Product> createProduct(Product product);
   Future<Product?> getProduct(String id);
@@ -53,6 +64,11 @@ abstract class LocalDataSource {
   Future<List<Inventory>> getLowStockInventories(String tenantId);
   Future<Inventory> updateInventory(Inventory inventory);
   Future<void> deleteInventory(String id);
+  
+  // Stock calculation operations
+  Future<int> getCurrentStock(String productId);
+  Future<List<Product>> getLowStockProducts(String tenantId);
+  Future<void> createInitialInventory(Product product);
 
   // Transaction operations
   Future<Transaction> createTransaction(Transaction transaction);
@@ -82,6 +98,7 @@ abstract class LocalDataSource {
   Future<SyncQueue> updateSyncQueue(SyncQueue queue);
   Future<void> deleteSyncQueue(String id);
   Future<void> clearCompletedSyncQueues();
+  Future<void> addToPendingSyncQueue(String operationType, String entityType, Map<String, dynamic>? entityData, {String? entityId});
 }
 
 class LocalDataSourceImpl implements LocalDataSource {
@@ -279,6 +296,104 @@ class LocalDataSourceImpl implements LocalDataSource {
     );
   }
 
+  // Unit operations
+  @override
+  Future<Unit> createUnit(Unit unit) async {
+    final db = await _database;
+    await db.insert('units', unit.toJson());
+    return unit;
+  }
+
+  @override
+  Future<Unit?> getUnit(String id) async {
+    final db = await _database;
+    final result = await db.query(
+      'units',
+      where: 'id = ? AND deleted_at IS NULL',
+      whereArgs: [id],
+    );
+    if (result.isEmpty) return null;
+    return Unit.fromJson(result.first);
+  }
+
+  @override
+  Future<List<Unit>> getUnits() async {
+    final db = await _database;
+    final result = await db.query(
+      'units',
+      where: 'deleted_at IS NULL AND is_active = 1',
+      orderBy: 'name ASC',
+    );
+    return result.map((json) => Unit.fromJson(json)).toList();
+  }
+
+  @override
+  Future<List<Unit>> getUnitsByTenant(String tenantId) async {
+    final db = await _database;
+    final result = await db.query(
+      'units',
+      where: 'tenant_id = ? AND deleted_at IS NULL AND is_active = 1',
+      whereArgs: [tenantId],
+      orderBy: 'name ASC',
+    );
+    return result.map((json) => Unit.fromJson(json)).toList();
+  }
+
+  @override
+  Future<List<Unit>> searchUnits(String query) async {
+    final db = await _database;
+    final result = await db.query(
+      'units',
+      where: 'name LIKE ? AND deleted_at IS NULL AND is_active = 1',
+      whereArgs: ['%$query%'],
+      orderBy: 'name ASC',
+    );
+    return result.map((json) => Unit.fromJson(json)).toList();
+  }
+
+  @override
+  Future<bool> unitNameExists(String name, {String? excludeId}) async {
+    final db = await _database;
+    String whereClause = 'name = ? AND deleted_at IS NULL';
+    List<dynamic> whereArgs = [name];
+    
+    if (excludeId != null) {
+      whereClause += ' AND id != ?';
+      whereArgs.add(excludeId);
+    }
+
+    final result = await db.query(
+      'units',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+
+    return result.isNotEmpty;
+  }
+
+  @override
+  Future<Unit> updateUnit(Unit unit) async {
+    final db = await _database;
+    await db.update(
+      'units',
+      unit.toJson(),
+      where: 'id = ?',
+      whereArgs: [unit.id],
+    );
+    return unit;
+  }
+
+  @override
+  Future<void> deleteUnit(String id) async {
+    final db = await _database;
+    await db.update(
+      'units',
+      {'deleted_at': DateTime.now().millisecondsSinceEpoch},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // Product operations
   @override
   Future<Product> createProduct(Product product) async {
@@ -350,12 +465,25 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<List<Product>> searchProducts(String query) async {
     final db = await _database;
+    
+    // Use regular LIKE search for now (FTS has issues)
+    // TODO: Fix FTS table and query syntax later
     final result = await db.rawQuery('''
-      SELECT p.* FROM products p
-      JOIN products_fts fts ON p.id = fts.product_id
-      WHERE fts MATCH ? AND p.deleted_at IS NULL
-      ORDER BY fts.rank
-    ''', [query]);
+      SELECT * FROM products 
+      WHERE (name LIKE ? OR sku LIKE ? OR description LIKE ?) 
+      AND deleted_at IS NULL
+      ORDER BY 
+        CASE 
+          WHEN name LIKE ? THEN 1
+          WHEN sku LIKE ? THEN 2
+          WHEN description LIKE ? THEN 3
+          ELSE 4
+        END,
+        name
+    ''', [
+      '%$query%', '%$query%', '%$query%',  // WHERE conditions
+      '%$query%', '%$query%', '%$query%'   // ORDER BY conditions
+    ]);
     return result.map((json) => Product.fromJson(json)).toList();
   }
 
@@ -523,6 +651,100 @@ class LocalDataSourceImpl implements LocalDataSource {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // Stock calculation operations
+  @override
+  Future<int> getCurrentStock(String productId) async {
+    final db = await _database;
+    
+    // Get initial stock from inventory table
+    final inventoryResult = await db.rawQuery('''
+      SELECT SUM(quantity) as total_inventory
+      FROM inventory 
+      WHERE product_id = ?
+    ''', [productId]);
+    
+    final initialStock = (inventoryResult.first['total_inventory'] as int?) ?? 0;
+    
+    // Get stock movements (purchases + sales + adjustments)
+    final movementsResult = await db.rawQuery('''
+      SELECT 
+        SUM(CASE WHEN type = 'purchase' THEN quantity ELSE 0 END) as total_purchases,
+        SUM(CASE WHEN type = 'sale' THEN quantity ELSE 0 END) as total_sales,
+        SUM(CASE WHEN type = 'adjustment' THEN quantity ELSE 0 END) as total_adjustments
+      FROM stock_movements 
+      WHERE product_id = ?
+    ''', [productId]);
+    
+    final totalPurchases = (movementsResult.first['total_purchases'] as int?) ?? 0;
+    final totalSales = (movementsResult.first['total_sales'] as int?) ?? 0;
+    final totalAdjustments = (movementsResult.first['total_adjustments'] as int?) ?? 0;
+    
+    // Calculate current stock: initial + purchases - sales + adjustments
+    final currentStock = initialStock + totalPurchases - totalSales + totalAdjustments;
+    
+    print('📊 Stock calculation for $productId:');
+    print('  Initial: $initialStock');
+    print('  Purchases: +$totalPurchases');
+    print('  Sales: -$totalSales');
+    print('  Adjustments: +$totalAdjustments');
+    print('  Current: $currentStock');
+    
+    return currentStock;
+  }
+
+  @override
+  Future<List<Product>> getLowStockProducts(String tenantId) async {
+    // Get all products for tenant
+    final products = await getProductsByTenant(tenantId);
+    final lowStockProducts = <Product>[];
+    
+    for (final product in products) {
+      try {
+        final reorderPoint = product.attributes['reorder_point'] as int? ?? product.minStock;
+        final currentStock = await getCurrentStock(product.id);
+        
+        if (currentStock <= reorderPoint) {
+          lowStockProducts.add(product);
+        }
+      } catch (e) {
+        print('❌ Error checking low stock for product ${product.id}: $e');
+      }
+    }
+    
+    return lowStockProducts;
+  }
+
+  @override
+  Future<void> createInitialInventory(Product product) async {
+    try {
+      // Get primary location for the tenant
+      final primaryLocation = await getPrimaryLocation(product.tenantId);
+      if (primaryLocation == null) {
+        print('❌ No primary location found for tenant: ${product.tenantId}');
+        return;
+      }
+
+      // Create initial inventory record with stock = 0
+      final inventory = Inventory(
+        id: 'inv_${DateTime.now().millisecondsSinceEpoch}',
+        tenantId: product.tenantId,
+        productId: product.id,
+        locationId: primaryLocation.id,
+        quantity: 0, // Initial stock = 0
+        reserved: 0,
+        updatedAt: DateTime.now(),
+        syncStatus: 'pending',
+        lastSyncedAt: null,
+      );
+
+      await createInventory(inventory);
+      print('✅ Initial inventory created for product: ${product.name} (stock: 0)');
+    } catch (e) {
+      print('❌ Error creating initial inventory for product ${product.id}: $e');
+      rethrow;
+    }
   }
 
   // Transaction operations
@@ -751,5 +973,18 @@ class LocalDataSourceImpl implements LocalDataSource {
       where: 'status = ?',
       whereArgs: [SyncStatus.success.name],
     );
+  }
+
+  @override
+  Future<void> addToPendingSyncQueue(String operationType, String entityType, Map<String, dynamic>? entityData, {String? entityId}) async {
+    final db = await _database;
+    await db.insert('pending_sync_queue', {
+      'operation_type': operationType,
+      'entity_type': entityType,
+      'entity_data': entityData != null ? jsonEncode(entityData) : null,
+      'entity_id': entityId,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+      'retry_count': 0,
+    });
   }
 }

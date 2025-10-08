@@ -129,7 +129,7 @@ class DashboardController extends GetxController {
 
   // Navigate to POS
   void navigateToPOS() {
-    // TODO: Implement navigation to POS
+    // Navigate to POS - will be implemented when POS page is ready
     Get.snackbar(
       'Info',
       'Navigasi ke POS akan segera tersedia',

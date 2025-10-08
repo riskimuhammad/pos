@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
-import 'package:pos/core/localization/language_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
+import 'package:pos/core/controllers/category_controller.dart';
 import 'package:pos/features/products/presentation/widgets/product_card.dart';
 import 'package:pos/features/products/presentation/widgets/product_search_bar.dart';
 import 'package:pos/features/products/presentation/widgets/category_filter.dart';
@@ -21,15 +21,20 @@ class ProductsPage extends StatefulWidget {
 
 class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMixin {
   late ProductController _controller;
-  late LanguageController _languageController;
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _controller = Get.find<ProductController>();
-    _languageController = Get.find<LanguageController>();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Ensure data is loaded when page opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadProducts();
+      // Also load categories for the filter
+      Get.find<CategoryController>().loadCategories();
+    });
   }
 
   @override
@@ -92,6 +97,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                   ],
                 ),
               ),
+             
             ],
           ),
         ],
@@ -105,7 +111,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
             child: Column(
               children: [
                 ProductSearchBar(
-                  onSearchChanged: _controller.searchProducts,
+                  onSearchChanged: _controller.performSearch,
                   onSearchCleared: _controller.clearSearch,
                   onBarcodeScanned: _handleBarcodeScanned,
                 ),
@@ -122,7 +128,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
           Container(
             color: Colors.white,
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
+            child: Obx(() => Row(
               children: [
                 Expanded(
                   child: _buildStatCard(
@@ -143,15 +149,21 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 ),
                 SizedBox(width: 12),
                 Expanded(
-                  child: _buildStatCard(
-                    'Stok Rendah',
-                    '${_controller.getLowStockProducts().length}',
-                    Icons.warning,
-                    AppTheme.warningColor,
+                  child: FutureBuilder<List<Product>>(
+                    future: _controller.getLowStockProducts(),
+                    builder: (context, snapshot) {
+                      final lowStockCount = snapshot.hasData ? snapshot.data!.length : 0;
+                      return _buildStatCard(
+                        'Stok Rendah',
+                        '$lowStockCount',
+                        Icons.warning,
+                        AppTheme.warningColor,
+                      );
+                    },
                   ),
                 ),
               ],
-            ),
+            )),
           ),
           
           // Products List
@@ -334,10 +346,19 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       case 'categories':
         _showCategoriesDialog();
         break;
+      case 'debug_barcode':
+        _controller.debugBarcodeInfo();
+        Get.snackbar(
+          'Debug Info',
+          'Barcode debug info printed to console',
+          snackPosition: SnackPosition.TOP,
+        );
+        break;
     }
   }
 
   void _showAddProductDialog() {
+    
     Get.dialog(
       ProductFormDialog(
         onSubmit: (product) {
@@ -352,7 +373,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       ProductFormDialog(
         product: product,
         onSubmit: (updatedProduct) {
-          _controller.updateProduct(updatedProduct);
+          _controller.updateProductData(updatedProduct);
         },
       ),
     );
@@ -394,7 +415,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       ImportExportDialog(
         products: _controller.products,
         onImportProducts: (importedProducts) {
-          // TODO: Handle imported products
+          // Handle imported products - will be implemented when CSV import is ready
           Get.snackbar(
             'Import Berhasil',
             '${importedProducts.length} produk berhasil diimport',
@@ -430,12 +451,6 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
     // Search for product with this barcode
     _controller.searchByBarcode(barcode);
     
-    Get.snackbar(
-      'Barcode Scanned',
-      'Mencari produk dengan barcode: $barcode',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: AppTheme.primaryColor,
-      colorText: Colors.white,
-    );
+ 
   }
 }

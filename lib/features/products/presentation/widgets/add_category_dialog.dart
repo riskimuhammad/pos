@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/shared/models/entities/entities.dart';
+import 'package:pos/core/controllers/category_controller.dart';
 
 class AddCategoryDialog extends StatefulWidget {
   final Function(Category) onSubmit;
@@ -394,31 +395,53 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
     );
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final category = Category(
-        id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
-        tenantId: 'default-tenant-id',
-        name: _nameController.text.trim(),
-        isActive: _isActive,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        syncStatus: 'pending',
-        lastSyncedAt: null,
-      );
+      try {
+        final category = Category(
+          id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
+          tenantId: 'default-tenant-id',
+          name: _nameController.text.trim(),
+          isActive: _isActive,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          syncStatus: 'pending',
+          lastSyncedAt: null,
+        );
 
-      // Call the onSubmit callback with the category
-      widget.onSubmit(category);
-      
-      // Show success message
-      Get.snackbar(
-        'Success',
-        'Kategori "${category.name}" berhasil ditambahkan',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: AppTheme.successColor,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-      );
+        // Save via controller (handles local DB + server sync automatically)
+        if (Get.isRegistered<CategoryController>()) {
+          final categoryController = Get.find<CategoryController>();
+          await categoryController.createCategory(category);
+          print('✅ Category saved & synced: ${category.name}');
+        } else {
+          print('⚠️ CategoryController not found, creating one temporarily');
+          // This shouldn't happen, but as fallback we ensure it's saved to DB
+          throw Exception('CategoryController not registered');
+        }
+
+        // Call the onSubmit callback with the category
+        widget.onSubmit(category);
+        
+        // Show success message
+        Get.snackbar(
+          'Success',
+          'Kategori "${category.name}" berhasil ditambahkan',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: AppTheme.successColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      } catch (e) {
+        print('❌ Error saving category: $e');
+        Get.snackbar(
+          'Error',
+          'Gagal menyimpan kategori: $e',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: AppTheme.errorColor,
+          colorText: Colors.white,
+        );
+      }
     }
   }
 }

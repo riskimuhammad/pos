@@ -5,7 +5,7 @@ class AppConstants {
   
   // Database
   static const String databaseName = 'pos_umkm.db';
-  static const int databaseVersion = 5; // Bumped to 5 for pending sync queue
+  static const int databaseVersion = 6; // Bumped to 6 for units table
   static const String databasePassword = 'pos_umkm_2024';
   
   // API Configuration

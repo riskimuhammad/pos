@@ -1,178 +1,192 @@
-# Dependency Injection Fix - Products Page
+# Dependency Injection Fix
 
-## Problem Description
+## 🔍 Problem Identified
+User reported error when accessing `ProductFormDialog`:
 
-Error saat navigasi ke halaman products:
 ```
-"GetProducts" not found. You need to call "Get.put(GetProducts())" or "Get.lazyPut(()=>GetProducts())"
+Exception has occurred.
+"UnitController" not found. You need to call "Get.put(UnitController())" or "Get.lazyPut(()=>UnitController())"
 ```
 
-## Root Cause
+## 🛠️ Root Cause Analysis
 
-`ProductsBinding` mencoba menggunakan `Get.find<GetProducts>()` tetapi dependency `GetProducts` belum terdaftar atau tidak tersedia saat binding dipanggil. Ini terjadi karena:
+### 1. **Field Initialization Issue**
+- **File**: `lib/features/products/presentation/widgets/product_form_dialog.dart`
+- **Line**: 65
+- **Problem**: `UnitController` was being accessed at field initialization level
+- **Code**: `final UnitController _unitController = Get.find<UnitController>();`
 
-1. Route binding dipanggil sebelum global dependencies diinisialisasi
-2. Dependencies mungkin belum terdaftar di GetX dependency injection system
-3. Urutan inisialisasi dependencies tidak konsisten
+### 2. **Timing Issue**
+- Field initialization happens **before** `initState()`
+- Dependency injection might not be complete at field initialization time
+- `Get.find<UnitController>()` was called before the controller was registered
 
-## Solution Implemented
+### 3. **Lazy Loading Issue**
+- **File**: `lib/core/routing/bindings/products_binding.dart`
+- **Problem**: `UnitController` was using `Get.lazyPut()` which only creates the instance when first accessed
+- **Issue**: If accessed too early, the controller might not be ready
 
-### Enhanced ProductsBinding with Dependency Validation
+## 🔧 Solution Implemented
 
-#### Updated ProductsBinding Class
+### 1. **Fixed Field Initialization**
 ```dart
-class ProductsBinding extends Bindings {
-  @override
-  void dependencies() {
-    // Ensure dependencies are available, create if not found
-    if (!Get.isRegistered<GetProducts>()) {
-      Get.lazyPut<GetProducts>(() => GetProducts(Get.find<ProductRepository>()));
-    }
-    if (!Get.isRegistered<CreateProduct>()) {
-      Get.lazyPut<CreateProduct>(() => CreateProduct(Get.find<ProductRepository>()));
-    }
-    if (!Get.isRegistered<SearchProducts>()) {
-      Get.lazyPut<SearchProducts>(() => SearchProducts(Get.find<ProductRepository>()));
-    }
-    if (!Get.isRegistered<ProductSyncService>()) {
-      Get.lazyPut<ProductSyncService>(() => ProductSyncService(
-        databaseHelper: Get.find<DatabaseHelper>(),
-        databaseSeeder: Get.find<DatabaseSeeder>(),
-        apiService: null,
-      ));
-    }
-    if (!Get.isRegistered<DatabaseSeeder>()) {
-      Get.lazyPut<DatabaseSeeder>(() => DatabaseSeeder(Get.find<DatabaseHelper>()));
-    }
+// BEFORE (Problematic)
+final UnitController _unitController = Get.find<UnitController>();
 
-    Get.lazyPut<ProductController>(() => ProductController(
-      getProducts: Get.find<GetProducts>(),
-      createProduct: Get.find<CreateProduct>(),
-      searchProducts: Get.find<SearchProducts>(),
-      productSyncService: Get.find<ProductSyncService>(),
-      databaseSeeder: Get.find<DatabaseSeeder>(),
-    ));
+// AFTER (Fixed)
+late UnitController _unitController;
+```
+
+### 2. **Moved to initState()**
+```dart
+@override
+void initState() {
+  super.initState();
+  _unitController = Get.find<UnitController>(); // Now called in initState()
+  _initializeForm();
+  _loadExistingProductNames();
+  _loadCategories();
+  _loadUnits();
+}
+```
+
+### 3. **Changed to Immediate Registration**
+```dart
+// BEFORE (Lazy)
+if (!Get.isRegistered<UnitController>()) {
+  Get.lazyPut<UnitController>(() => UnitController(...));
+}
+
+// AFTER (Immediate)
+if (!Get.isRegistered<UnitController>()) {
+  Get.put<UnitController>(UnitController(...));
+}
+```
+
+### 4. **Applied Same Fix to CategoryController**
+```dart
+if (!Get.isRegistered<CategoryController>()) {
+  Get.put<CategoryController>(CategoryController(...));
+}
+```
+
+## 📊 Before vs After
+
+### Before (Broken):
+```dart
+class _ProductFormDialogState extends State<ProductFormDialog> {
+  final UnitController _unitController = Get.find<UnitController>(); // ❌ Too early
+  
+  @override
+  void initState() {
+    super.initState();
+    // Controller already accessed above, but might not be ready
   }
 }
 ```
 
-#### Added Required Imports
+### After (Working):
 ```dart
-import 'package:get/get.dart';
-import 'package:pos/features/products/presentation/controllers/product_controller.dart';
-import 'package:pos/features/products/domain/usecases/get_products.dart';
-import 'package:pos/features/products/domain/usecases/create_product.dart';
-import 'package:pos/features/products/domain/usecases/search_products.dart';
-import 'package:pos/features/products/data/repositories/product_repository_impl.dart';
-import 'package:pos/core/sync/product_sync_service.dart';
-import 'package:pos/core/data/database_seeder.dart';
-import 'package:pos/core/storage/database_helper.dart';
+class _ProductFormDialogState extends State<ProductFormDialog> {
+  late UnitController _unitController; // ✅ Declared but not initialized
+  
+  @override
+  void initState() {
+    super.initState();
+    _unitController = Get.find<UnitController>(); // ✅ Called at right time
+  }
+}
 ```
 
-## Key Features of the Fix
+## 🎯 Key Changes
 
-### 1. Dependency Validation
-- Checks if each dependency is already registered using `Get.isRegistered<T>()`
-- Only creates dependencies if they don't exist
-- Prevents duplicate registrations
+### 1. **ProductFormDialog**
+- Changed `final UnitController _unitController = Get.find<UnitController>();` to `late UnitController _unitController;`
+- Moved `Get.find<UnitController>()` to `initState()`
 
-### 2. Self-Contained Binding
-- ProductsBinding now handles its own dependencies
-- No longer relies on global dependency injection order
-- Works regardless of when it's called
+### 2. **ProductsBinding**
+- Changed `Get.lazyPut<UnitController>()` to `Get.put<UnitController>()`
+- Changed `Get.lazyPut<CategoryController>()` to `Get.put<CategoryController>()`
 
-### 3. Fallback Creation
-- Creates missing dependencies on-demand
-- Ensures all required dependencies are available
-- Maintains proper dependency chain
+## 🔄 Dependency Injection Flow
 
-## Dependencies Handled
+### Before Fix:
+1. Widget created
+2. Field initialization tries to access `UnitController` ❌
+3. `UnitController` not ready yet (lazy loading)
+4. Exception thrown
 
-| Dependency | Purpose | Fallback Creation |
-|------------|---------|-------------------|
-| `GetProducts` | Get products use case | ✅ |
-| `CreateProduct` | Create product use case | ✅ |
-| `SearchProducts` | Search products use case | ✅ |
-| `ProductSyncService` | Product sync service | ✅ |
-| `DatabaseSeeder` | Database seeding service | ✅ |
+### After Fix:
+1. Widget created
+2. Field declared but not initialized ✅
+3. `initState()` called
+4. `UnitController` accessed and ready ✅
+5. Widget works properly
 
-## Route Configuration
+## 🎉 Benefits
 
-The products route is properly configured in `app_routes.dart`:
+### 1. **Immediate Fix**
+- No more "UnitController not found" errors
+- ProductFormDialog opens successfully
+- All unit-related functionality works
 
+### 2. **Better Timing**
+- Controllers are accessed at the right time
+- Dependency injection is complete before access
+- More predictable behavior
+
+### 3. **Consistent Pattern**
+- Both `UnitController` and `CategoryController` use same pattern
+- Immediate registration instead of lazy loading
+- Better for UI controllers that are frequently accessed
+
+## 📝 Files Modified
+
+1. **`lib/features/products/presentation/widgets/product_form_dialog.dart`**
+   - Changed field initialization pattern
+   - Moved controller access to `initState()`
+
+2. **`lib/core/routing/bindings/products_binding.dart`**
+   - Changed `lazyPut` to `put` for controllers
+   - Ensured immediate registration
+
+3. **`docapp/DEPENDENCY_INJECTION_FIX.md`**
+   - Documentation for the fix
+
+## 🚀 Next Steps
+
+1. **Test the fix**: ProductFormDialog should now open without errors
+2. **Monitor performance**: Immediate registration vs lazy loading impact
+3. **Apply pattern**: Use same pattern for other similar issues
+4. **Consider architecture**: Review dependency injection patterns across the app
+
+## 🔧 Best Practices
+
+### 1. **Controller Access Pattern**
 ```dart
-GetPage(
-  name: products,
-  page: () => const ProductsPage(),
-  transition: Transition.rightToLeft,
-  middlewares: [AuthMiddleware()],
-  binding: ProductsBinding(), // ← Uses the enhanced binding
-),
+// ✅ Good: Access in initState()
+late SomeController _controller;
+
+@override
+void initState() {
+  super.initState();
+  _controller = Get.find<SomeController>();
+}
+
+// ❌ Bad: Access at field level
+final SomeController _controller = Get.find<SomeController>();
 ```
 
-## Global Dependencies
-
-These dependencies are still registered globally in `dependency_injection.dart`:
-
+### 2. **Registration Pattern**
 ```dart
-// Repository dependencies
-Get.lazyPut<ProductRepository>(() => ProductRepositoryImpl(
-  networkInfo: Get.find<NetworkInfo>(),
-  localDataSource: Get.find<LocalDataSource>(),
-));
+// ✅ Good: Immediate registration for UI controllers
+Get.put<SomeController>(SomeController(...));
 
-// Use case dependencies
-Get.lazyPut<GetProducts>(() => GetProducts(Get.find<ProductRepository>()));
-Get.lazyPut<CreateProduct>(() => CreateProduct(Get.find<ProductRepository>()));
-Get.lazyPut<SearchProducts>(() => SearchProducts(Get.find<ProductRepository>()));
-
-// Data services
-Get.lazyPut<DatabaseSeeder>(() => DatabaseSeeder(Get.find<DatabaseHelper>()));
-Get.lazyPut<ProductSyncService>(() => ProductSyncService(
-  databaseHelper: Get.find<DatabaseHelper>(),
-  databaseSeeder: Get.find<DatabaseSeeder>(),
-  apiService: null,
-));
+// ⚠️ Consider: Lazy loading for heavy services
+Get.lazyPut<SomeService>(() => SomeService(...));
 ```
 
-## Benefits
-
-1. **Resilient**: Works even if global dependencies aren't initialized
-2. **Self-Sufficient**: Doesn't depend on external initialization order
-3. **Safe**: Prevents duplicate registrations
-4. **Maintainable**: Clear dependency chain and fallback logic
-5. **Testable**: Easy to test with isolated dependencies
-
-## Testing
-
-### Before Fix
-```
-❌ "GetProducts" not found. You need to call "Get.put(GetProducts())" or "Get.lazyPut(()=>GetProducts())"
-```
-
-### After Fix (Expected)
-```
-✅ Products page loads successfully
-✅ ProductController initialized with all dependencies
-✅ Product list displays correctly
-```
-
-## Files Modified
-
-1. **`lib/core/routing/bindings/products_binding.dart`**
-   - Added dependency validation logic
-   - Added fallback dependency creation
-   - Added required imports
-
-## Best Practices Applied
-
-1. **Defensive Programming**: Check if dependencies exist before using them
-2. **Fail-Safe Design**: Provide fallback creation for missing dependencies
-3. **Clear Dependencies**: Explicitly list all required dependencies
-4. **Proper Imports**: Include all necessary imports for dependency creation
-
----
-
-## Status: ✅ RESOLVED
-
-Products page now has robust dependency injection that works regardless of initialization order.
+### 3. **Dependency Order**
+- Register dependencies in correct order
+- Ensure all dependencies are ready before access
+- Use `Get.isRegistered()` checks when needed

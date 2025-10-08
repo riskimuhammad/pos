@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
@@ -6,8 +7,20 @@ import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/features/products/presentation/widgets/barcode_scanner_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/category_search_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/product_search_dialog.dart';
+import 'package:pos/features/products/presentation/widgets/unit_search_dialog.dart';
+import 'package:pos/core/controllers/unit_controller.dart';
+import 'package:pos/features/products/presentation/controllers/product_controller.dart';
+import 'package:pos/core/controllers/category_controller.dart';
+import 'package:pos/core/storage/local_datasource.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
+import 'package:intl/intl.dart';
+
+import '../../../../core/api/unit_api_service.dart';
+import '../../../../core/network/network_info.dart';
+import '../../../../core/repositories/unit_repository.dart';
+import '../../../../core/repositories/unit_repository_impl.dart';
+import '../../../../core/usecases/unit_usecases.dart';
 
 class ProductFormDialog extends StatefulWidget {
   final Product? product; // null for create, Product for edit
@@ -38,8 +51,8 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   final _reorderQtyController = TextEditingController();
   final _barcodeController = TextEditingController();
 
-  String _selectedCategoryId = 'cat_1';
-  String _selectedUnit = 'pcs';
+  String? _selectedCategoryId; // No default - user must add category first
+  String? _selectedUnitId; // No default - user must add unit first
   bool _isActive = true;
   bool _isExpirable = false;
   bool _hasBarcode = false;
@@ -51,120 +64,79 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   Product? _selectedProductData; // Full product data for restock
   int _currentStock = 0; // Current stock from server
   final TextEditingController _newStockController = TextEditingController(); // New stock to add
+  DateTime? _expiryDate; // Expiry date for expirable products
 
-  final List<String> _units = ['pcs', 'bungkus', 'botol', 'kg', 'gram', 'liter', 'ml', 'ikat', 'paket', 'sachet', 'dus', 'kaleng', 'botol kecil', 'botol besar'];
   final ImagePicker _imagePicker = ImagePicker();
+  late UnitController _unitController;
   // late LanguageController _languageController;
 
   @override
   void initState() {
     super.initState();
     // _languageController = Get.find<LanguageController>();
+   _setupInit();
     _initializeForm();
     _loadExistingProductNames();
     _loadCategories();
+    _loadUnits();
   }
+_setupInit(){
+  if (!Get.isRegistered<UnitController>()) {
+    Get.put<Dio>(Dio());
+    Get.put<UnitApiService>(UnitApiService(
+      dio: Get.find<Dio>(),
+    ));
+    Get.put<UnitRepository>(UnitRepositoryImpl(
+      localDataSource: Get.find<LocalDataSource>(),
+      unitApiService: Get.isRegistered<UnitApiService>() ? Get.find<UnitApiService>() : null,
+      networkInfo: Get.find<NetworkInfo>(),
+    ));
+    Get.put<GetUnitsUseCase>(GetUnitsUseCase(
+      Get.find<UnitRepository>(),
+    ));
+    Get.put<CreateUnitUseCase>(CreateUnitUseCase(
+      Get.find<UnitRepository>(),
+    ));
+    Get.put<UpdateUnitUseCase>(UpdateUnitUseCase(
+      Get.find<UnitRepository>(),
+    ));
+    Get.put<DeleteUnitUseCase>(DeleteUnitUseCase(
+      Get.find<UnitRepository>(),
+    ));
+    Get.put<SearchUnitsUseCase>(SearchUnitsUseCase(
+      Get.find<UnitRepository>(),
+    ));
+  _unitController =  Get.put<UnitController>(UnitController(
+      getUnitsUseCase: Get.find<GetUnitsUseCase>(),
+      createUnitUseCase: Get.find<CreateUnitUseCase>(),
+      updateUnitUseCase: Get.find<UpdateUnitUseCase>(),
+      deleteUnitUseCase: Get.find<DeleteUnitUseCase>(),
+      searchUnitsUseCase: Get.find<SearchUnitsUseCase>(),
+    ));
+  }else{
+   _unitController = Get.find<UnitController>();
 
+  }
+ 
+}
   /// Load existing product names from server
   Future<void> _loadExistingProductNames() async {
     try {
-      // TODO: Implement API call to get existing product names
-      // For now, using dummy data
-      _existingProductNames = [
-        'Indomie Goreng Rendang',
-        'Kopi ABC Sachet 20g',
-        'Teh Botol Sosro 350ml',
-        'Beras Premium 5kg',
-        'Minyak Goreng Bimoli 1L',
-        'Gula Pasir 1kg',
-        'Garam Dapur 500g',
-        'Kecap Manis ABC 275ml',
-        'Sambal ABC Extra Pedas 135ml',
-        'Susu UHT Ultra 1L',
-        'Mie Sedap Goreng',
-        'Aqua 600ml',
-        'Pocari Sweat 500ml',
-        'Nescafe 3in1',
-        'Teh Pucuk Harum 350ml',
-        'Biskuit Roma Kelapa',
-        'Chitato Original',
-        'Lays Classic',
-        'Oreo Original',
-        'KitKat 2 Finger',
-      ];
+      // Load from local database
+      final productController = Get.find<ProductController>();
+      _existingProductNames = productController.products.map((p) => p.name).toList();
     } catch (e) {
       print('❌ Failed to load existing product names: $e');
+      _existingProductNames = [];
     }
   }
 
-  /// Get product data by name (simulate API call)
+  /// Get product data by name (from local database)
   Future<Product?> _getProductDataByName(String productName) async {
     try {
-      // TODO: Implement API call to get product data by name
-      // For now, using dummy data
-      final dummyProducts = {
-        'Indomie Goreng Rendang': Product(
-          id: 'prod_001',
-          tenantId: 'default-tenant-id',
-          sku: 'IMG001',
-          name: 'Indomie Goreng Rendang',
-          categoryId: 'cat_1',
-          description: 'Mie instan goreng dengan bumbu rendang yang autentik',
-          unit: 'bungkus',
-          priceBuy: 2500.0,
-          priceSell: 3500.0,
-          minStock: 10,
-          photos: ['https://example.com/indomie.jpg'],
-          attributes: {
-            'brand': 'Indomie',
-            'variant': 'Goreng Rendang',
-            'pack_size': '85g',
-            'uom': 'bungkus',
-            'reorder_point': 10,
-            'reorder_qty': 50,
-          },
-          barcode: '8991002101234',
-          hasBarcode: true,
-          isExpirable: true,
-          isActive: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          syncStatus: 'synced',
-          lastSyncedAt: DateTime.now(),
-        ),
-        'Kopi ABC Sachet 20g': Product(
-          id: 'prod_002',
-          tenantId: 'default-tenant-id',
-          sku: 'ABC001',
-          name: 'Kopi ABC Sachet 20g',
-          categoryId: 'cat_2',
-          description: 'Kopi instan sachet 20g',
-          unit: 'sachet',
-          priceBuy: 500.0,
-          priceSell: 750.0,
-          minStock: 20,
-          photos: ['https://example.com/kopi-abc.jpg'],
-          attributes: {
-            'brand': 'ABC',
-            'variant': 'Sachet',
-            'pack_size': '20g',
-            'uom': 'sachet',
-            'reorder_point': 20,
-            'reorder_qty': 100,
-          },
-          barcode: '8991002101235',
-          hasBarcode: true,
-          isExpirable: true,
-          isActive: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          syncStatus: 'synced',
-          lastSyncedAt: DateTime.now(),
-        ),
-        // Add more dummy products as needed
-      };
-
-      return dummyProducts[productName];
+      // Load from local database
+      final productController = Get.find<ProductController>();
+      return productController.products.firstWhereOrNull((p) => p.name == productName);
     } catch (e) {
       print('❌ Failed to get product data: $e');
       return null;
@@ -223,69 +195,150 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   /// Load categories from database
   Future<void> _loadCategories() async {
     try {
-      // TODO: Implement API call to get categories
-      // For now, using dummy data
-      _categories = [
-        Category(
-          id: 'cat_1',
-          tenantId: 'default-tenant-id',
-          name: 'Makanan Instan',
-          isActive: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          syncStatus: 'synced',
-          lastSyncedAt: DateTime.now(),
-        ),
-        Category(
-          id: 'cat_2',
-          tenantId: 'default-tenant-id',
-          name: 'Minuman',
-          isActive: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          syncStatus: 'synced',
-          lastSyncedAt: DateTime.now(),
-        ),
-        Category(
-          id: 'cat_3',
-          tenantId: 'default-tenant-id',
-          name: 'Sembako',
-          isActive: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          syncStatus: 'synced',
-          lastSyncedAt: DateTime.now(),
-        ),
-        Category(
-          id: 'cat_4',
-          tenantId: 'default-tenant-id',
-          name: 'Bumbu Dapur',
-          isActive: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          syncStatus: 'synced',
-          lastSyncedAt: DateTime.now(),
-        ),
-        Category(
-          id: 'cat_5',
-          tenantId: 'default-tenant-id',
-          name: 'Perawatan',
-          isActive: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          syncStatus: 'synced',
-          lastSyncedAt: DateTime.now(),
-        ),
-      ];
+      // Load from local database
+      if (Get.isRegistered<CategoryController>()) {
+        final categoryController = Get.find<CategoryController>();
+        await categoryController.loadCategories();
+        _categories = categoryController.categories;
+      } else {
+        print('⚠️ CategoryController not registered, loading from service directly');
+        // Fallback: load directly from datasource
+        final localDataSource = Get.find<LocalDataSource>();
+        _categories = await localDataSource.getCategoriesByTenant('default-tenant-id');
+      }
     } catch (e) {
       print('❌ Failed to load categories: $e');
+      _categories = [];
+    }
+  }
+
+  /// Load units from database
+  Future<void> _loadUnits() async {
+    try {
+      if (Get.isRegistered<UnitController>()) {
+        await _unitController.loadUnits();
+        // Units loaded from controller
+      } else {
+        print('⚠️ UnitController not registered, loading from service directly');
+        // Fallback: load directly from datasource
+        final localDataSource = Get.find<LocalDataSource>();
+        await localDataSource.getUnitsByTenant('default-tenant-id');
+      }
+      // No default seeding - users must add their own units
+    } catch (e) {
+      print('❌ Failed to load units: $e');
     }
   }
 
   /// Get category name by ID
-  String _getCategoryName(String categoryId) {
+  String _getCategoryName(String? categoryId) {
+    if (categoryId == null) return 'Pilih Kategori';
     final category = _categories.firstWhereOrNull((cat) => cat.id == categoryId);
-    return category?.name ?? 'Unknown Category';
+    return category?.name ?? 'Kategori Tidak Ditemukan';
+  }
+
+  /// Get unit name by ID
+  String _getUnitName(String? unitId) {
+    if (unitId == null) return 'Pilih Satuan';
+    final unit = _unitController.getUnitById(unitId);
+    return unit?.name ?? 'Satuan Tidak Ditemukan';
+  }
+
+  /// Validate that category and unit exist before saving product
+  bool _validateCategoryAndUnit() {
+    // Check if category is selected and exists
+    if (_selectedCategoryId == null) {
+      Get.snackbar(
+        'Kategori Belum Dipilih',
+        'Silakan pilih atau tambahkan kategori terlebih dahulu.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppTheme.errorColor,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        mainButton: TextButton(
+          onPressed: () {
+            Get.back(); // Close snackbar
+            _showCategorySearchDialog(); // Open category dialog
+          },
+          child: const Text(
+            'Pilih Kategori',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+      return false;
+    }
+
+    final categoryExists = _categories.any((cat) => cat.id == _selectedCategoryId);
+    if (!categoryExists) {
+      Get.snackbar(
+        'Kategori Tidak Ditemukan',
+        'Kategori yang dipilih tidak ditemukan. Silakan pilih kategori lain atau tambahkan kategori baru.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppTheme.errorColor,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        mainButton: TextButton(
+          onPressed: () {
+            Get.back(); // Close snackbar
+            _showCategorySearchDialog(); // Open category dialog
+          },
+          child: const Text(
+            'Pilih Kategori',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+      return false;
+    }
+
+    // Check if unit is selected and exists
+    if (_selectedUnitId == null) {
+      Get.snackbar(
+        'Satuan Belum Dipilih',
+        'Silakan pilih atau tambahkan satuan terlebih dahulu.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppTheme.errorColor,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        mainButton: TextButton(
+          onPressed: () {
+            Get.back(); // Close snackbar
+            _showUnitSearchDialog(); // Open unit dialog
+          },
+          child: const Text(
+            'Pilih Satuan',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+      return false;
+    }
+
+    final unitExists = _unitController.units.any((unit) => unit.id == _selectedUnitId);
+    if (!unitExists) {
+      Get.snackbar(
+        'Satuan Tidak Ditemukan',
+        'Satuan yang dipilih tidak ditemukan. Silakan pilih satuan lain atau tambahkan satuan baru.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppTheme.errorColor,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        mainButton: TextButton(
+          onPressed: () {
+            Get.back(); // Close snackbar
+            _showUnitSearchDialog(); // Open unit dialog
+          },
+          child: const Text(
+            'Pilih Satuan',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+      return false;
+    }
+
+    return true;
   }
 
   /// Show category search dialog
@@ -300,13 +353,35 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
             _selectedCategoryId = category.id;
           });
         },
-        onAddCategory: (category) {
+        onAddCategory: (category) async {
+          // Refresh categories from database
+          await _loadCategories();
           setState(() {
-            _categories.add(category);
             _selectedCategoryId = category.id;
           });
-          
-        
+        },
+      ),
+    );
+  }
+
+  /// Show unit search dialog
+  void _showUnitSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => UnitSearchDialog(
+        units: _unitController.units,
+        selectedUnitId: _selectedUnitId,
+        onUnitSelected: (unit) {
+          setState(() {
+            _selectedUnitId = unit.id;
+          });
+        },
+        onAddUnit: (unit) async {
+          // Refresh units from database
+          await _loadUnits();
+          setState(() {
+            _selectedUnitId = unit.id;
+          });
         },
       ),
     );
@@ -343,8 +418,10 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
           // Auto-fill all fields except price and stock
           _skuController.text = productData.sku;
           _descriptionController.text = productData.description ?? '';
-          _selectedCategoryId = productData.categoryId ?? 'cat_1';
-          _selectedUnit = _units.contains(productData.unit) ? productData.unit : 'pcs';
+          _selectedCategoryId = productData.categoryId;
+      // Find unit by name and set ID
+      final unit = _unitController.getUnitByName(productData.unit);
+      _selectedUnitId = unit?.id;
           _minStockController.text = productData.minStock.toString();
           
           // Auto-fill attributes
@@ -360,8 +437,18 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
           _isExpirable = productData.isExpirable;
           _isActive = productData.isActive;
           
+          // Load expiry date if available
+          if (productData.attributes['expiry_date'] != null) {
+            try {
+              _expiryDate = DateTime.parse(productData.attributes['expiry_date']);
+            } catch (e) {
+              print('❌ Error parsing expiry date: $e');
+              _expiryDate = null;
+            }
+          }
+          
           // Set current stock (for display) - simulate current stock
-          _currentStock = 25; // TODO: Get actual current stock from server
+          _currentStock = 0; // Will be loaded from actual inventory
           
           // Keep price fields empty for user input
           _priceBuyController.clear();
@@ -450,11 +537,23 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       _reorderPointController.text = product.attributes['reorder_point']?.toString() ?? '';
       _reorderQtyController.text = product.attributes['reorder_qty']?.toString() ?? '';
       _barcodeController.text = product.barcode ?? '';
-      _selectedCategoryId = product.categoryId ?? 'cat_1';
-      _selectedUnit = _units.contains(product.unit) ? product.unit : 'pcs';
+      _selectedCategoryId = product.categoryId;
+      // Find unit by name and set ID
+      final unit = _unitController.getUnitByName(product.unit);
+      _selectedUnitId = unit?.id;
       _isActive = product.isActive;
       _isExpirable = product.isExpirable;
       _hasBarcode = product.hasBarcode;
+      
+      // Load expiry date if available
+      if (product.attributes['expiry_date'] != null) {
+        try {
+          _expiryDate = DateTime.parse(product.attributes['expiry_date']);
+        } catch (e) {
+          print('❌ Error parsing expiry date: $e');
+          _expiryDate = null;
+        }
+      }
       
       // Load existing images if any
       if (product.photos.isNotEmpty) {
@@ -463,13 +562,9 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         _productImages = _productImages.where((image) => _isValidImage(image)).toList();
       }
       
-      // Check if this is a new product or existing
-      _isNewProduct = !_isProductNameExisting(product.name);
-      
-      // If it's an existing product, set the selected product
-      if (!_isNewProduct) {
-        _selectedExistingProduct = product.name;
-      }
+      // This is edit mode, not a new product
+      _isNewProduct = false;
+      _selectedExistingProduct = product.name;
     }
   }
 
@@ -838,11 +933,22 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                               title: 'Produk Expirable',
                               subtitle: 'Produk memiliki tanggal kadaluarsa',
                               value: _isExpirable,
-                              onChanged: (value) => setState(() => _isExpirable = value),
+                              onChanged: (value) => setState(() {
+                                _isExpirable = value;
+                                if (!value) {
+                                  _expiryDate = null; // Clear expiry date if disabled
+                                }
+                              }),
                             ),
                           ),
                         ],
                       ),
+                      
+                      // Expiry date field (only show if expirable is enabled)
+                      if (_isExpirable) ...[
+                        const SizedBox(height: 20),
+                        _buildExpiryDateField(),
+                      ],
                     ],
                   ),
                 ),
@@ -966,29 +1072,42 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   }
 
   Widget _buildUnitDropdown() {
-    return DropdownButtonFormField<String>(
-      value: _selectedUnit,
-      decoration: InputDecoration(
-        labelText: 'Satuan *',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Satuan *',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppTheme.primaryColor),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _showUnitSearchDialog,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[400]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _getUnitName(_selectedUnitId),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.grey[600],
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-      items: _units.map((unit) {
-        return DropdownMenuItem(
-          value: unit,
-          child: Text(unit),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() {
-          _selectedUnit = value!;
-        });
-      },
+      ],
     );
   }
 
@@ -1589,6 +1708,77 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     }
   }
 
+  /// Build expiry date field
+  Widget _buildExpiryDateField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Tanggal Kadaluarsa *',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _selectExpiryDate,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[400]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  color: Colors.grey[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _expiryDate != null 
+                        ? DateFormat('dd MMMM yyyy', 'id').format(_expiryDate!)
+                        : 'Pilih tanggal kadaluarsa',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: _expiryDate != null 
+                          ? Colors.black87 
+                          : Colors.grey[500],
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.grey[600],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Select expiry date
+  Future<void> _selectExpiryDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _expiryDate ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)), // 5 years from now
+      locale: const Locale('id', 'ID'),
+    );
+    
+    if (picked != null && picked != _expiryDate) {
+      setState(() {
+        _expiryDate = picked;
+      });
+    }
+  }
+
   /// Build image error widget
   Widget _buildImageErrorWidget() {
     return Container(
@@ -1640,7 +1830,24 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       return;
     }
     
+    // Additional validation for expiry date
+    if (_isExpirable && _expiryDate == null) {
+      Get.snackbar(
+        'Error',
+        'Tanggal kadaluarsa harus diisi untuk produk expirable',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppTheme.errorColor,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    
     if (_formKey.currentState!.validate()) {
+      // Validate that category and unit exist
+      if (!_validateCategoryAndUnit()) {
+        return;
+      }
+      
       Product product;
       
       if (_isNewProduct) {
@@ -1654,7 +1861,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
           description: _descriptionController.text.trim().isEmpty 
               ? null 
               : _descriptionController.text.trim(),
-          unit: _selectedUnit,
+          unit: _getUnitName(_selectedUnitId),
           priceBuy: double.parse(_priceBuyController.text),
           priceSell: double.parse(_priceSellController.text),
           minStock: int.parse(_minStockController.text),
@@ -1663,13 +1870,16 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
             'brand': _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
             'variant': _variantController.text.trim().isEmpty ? null : _variantController.text.trim(),
             'pack_size': _packSizeController.text.trim().isEmpty ? null : _packSizeController.text.trim(),
-            'uom': _selectedUnit,
+            'uom': _getUnitName(_selectedUnitId),
             'reorder_point': _reorderPointController.text.trim().isEmpty 
                 ? null 
                 : int.tryParse(_reorderPointController.text.trim()),
             'reorder_qty': _reorderQtyController.text.trim().isEmpty 
                 ? null 
                 : int.tryParse(_reorderQtyController.text.trim()),
+            'expiry_date': _isExpirable && _expiryDate != null 
+                ? _expiryDate!.toIso8601String() 
+                : null,
           },
           barcode: _hasBarcode && _barcodeController.text.trim().isNotEmpty 
               ? _barcodeController.text.trim() 
@@ -1683,23 +1893,48 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
           lastSyncedAt: null,
         );
       } else {
-        // Update existing product (restock)
-        final newStock = int.parse(_newStockController.text);
-        final totalStock = _currentStock + newStock;
-        
-        product = _selectedProductData!.copyWith(
+        // Update existing product (edit mode)
+        product = widget.product!.copyWith(
+          sku: _skuController.text.trim(),
+          name: _nameController.text.trim(),
+          categoryId: _selectedCategoryId,
+          description: _descriptionController.text.trim().isEmpty 
+              ? null 
+              : _descriptionController.text.trim(),
+          unit: _getUnitName(_selectedUnitId),
           priceBuy: double.parse(_priceBuyController.text),
           priceSell: double.parse(_priceSellController.text),
+          minStock: int.parse(_minStockController.text),
+          photos: _productImages,
+          attributes: {
+            'brand': _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
+            'variant': _variantController.text.trim().isEmpty ? null : _variantController.text.trim(),
+            'pack_size': _packSizeController.text.trim().isEmpty ? null : _packSizeController.text.trim(),
+            'uom': _getUnitName(_selectedUnitId),
+            'reorder_point': _reorderPointController.text.trim().isEmpty 
+                ? null 
+                : int.tryParse(_reorderPointController.text.trim()),
+            'reorder_qty': _reorderQtyController.text.trim().isEmpty 
+                ? null 
+                : int.tryParse(_reorderQtyController.text.trim()),
+            'expiry_date': _isExpirable && _expiryDate != null 
+                ? _expiryDate!.toIso8601String() 
+                : null,
+          },
+          barcode: _hasBarcode && _barcodeController.text.trim().isNotEmpty 
+              ? _barcodeController.text.trim() 
+              : null,
+          hasBarcode: _hasBarcode,
+          isExpirable: _isExpirable,
+          isActive: _isActive,
           updatedAt: DateTime.now(),
           syncStatus: 'pending',
           lastSyncedAt: null,
         );
         
-        // TODO: Update stock in database
-        print('📦 Restock: ${product.name}');
-        print('📊 Current Stock: $_currentStock');
-        print('➕ New Stock: $newStock');
-        print('📈 Total Stock: $totalStock');
+        print('✏️ Edit Product: ${product.name}');
+        print('📊 Updated SKU: ${product.sku}');
+        print('💰 Updated Price: ${product.priceSell}');
       }
 
       widget.onSubmit(product);

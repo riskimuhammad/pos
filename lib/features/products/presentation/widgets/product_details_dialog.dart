@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/core/localization/language_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
+import 'package:pos/core/controllers/category_controller.dart';
 
 class ProductDetailsDialog extends StatelessWidget {
   final Product product;
@@ -141,21 +142,6 @@ class ProductDetailsDialog extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Get.back();
-                      // TODO: Navigate to edit form
-                    },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: AppTheme.primaryColor),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => Get.back(),
                     icon: const Icon(Icons.close),
@@ -286,9 +272,18 @@ class ProductDetailsDialog extends StatelessWidget {
   }
 
   String _getCategoryName(String categoryId) {
-    final categories = ['Makanan Instan', 'Minuman', 'Sembako', 'Protein', 'Sayuran'];
-    final index = int.tryParse(categoryId.replaceAll('cat_', '')) ?? 1;
-    return categories[index - 1];
+    try {
+      if (Get.isRegistered<CategoryController>()) {
+        final categoryController = Get.find<CategoryController>();
+        final category = categoryController.getCategoryById(categoryId);
+        return category?.name ?? 'Kategori Tidak Ditemukan';
+      } else {
+        return 'Kategori Tidak Ditemukan';
+      }
+    } catch (e) {
+      print('❌ Error getting category name: $e');
+      return 'Kategori Tidak Ditemukan';
+    }
   }
 
   String _calculateMargin() {

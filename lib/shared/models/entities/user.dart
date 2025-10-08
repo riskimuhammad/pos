@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:equatable/equatable.dart';
 
 class User extends Equatable {
@@ -53,7 +54,9 @@ class User extends Equatable {
       fullName: json['full_name'] as String?,
       role: json['role'] as String,
       permissions: json['permissions'] != null
-          ? List<String>.from(json['permissions'] as List)
+          ? (json['permissions'] is String 
+              ? List<String>.from(jsonDecode(json['permissions'] as String))
+              : List<String>.from(json['permissions'] as List))
           : [],
       isActive: _parseBoolean(json['is_active'], true),
       lastLoginAt: json['last_login_at'] != null
@@ -80,7 +83,7 @@ class User extends Equatable {
       'password_hash': passwordHash,
       'full_name': fullName,
       'role': role,
-      'permissions': permissions,
+      'permissions': jsonEncode(permissions), // Convert List to JSON string for SQLite
       'is_active': isActive ? 1 : 0,
       'last_login_at': lastLoginAt?.millisecondsSinceEpoch,
       'created_at': createdAt.millisecondsSinceEpoch,

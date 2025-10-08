@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
-import 'package:pos/core/data/dummy_products.dart';
+import 'package:pos/core/controllers/category_controller.dart';
 
 class CategoryFilter extends StatefulWidget {
   final Function(String) onCategorySelected;
@@ -21,43 +22,49 @@ class _CategoryFilterState extends State<CategoryFilter> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = DummyProducts.getCategories();
+    final categoryController = Get.find<CategoryController>();
     
     return Container(
       height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length + 1, // +1 for "All" option
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            // "All" option
+      child: Obx(() {
+        final categories = categoryController.categories.map((c) => c.name).toList();
+        
+        return ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: categories.length + 1, // +1 for "All" option
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              // "All" option
+              return _buildCategoryChip(
+                'Semua',
+                _selectedCategory == null,
+                () {
+                  setState(() {
+                    _selectedCategory = null;
+                  });
+                  widget.onCategoryCleared();
+                },
+              );
+            }
+            
+            final category = categories[index - 1];
+            final isSelected = _selectedCategory == category;
+            
             return _buildCategoryChip(
-              'Semua',
-              _selectedCategory == null,
+              category,
+              isSelected,
               () {
                 setState(() {
-                  _selectedCategory = null;
+                  _selectedCategory = category;
                 });
-                widget.onCategoryCleared();
+                // Find category ID by name
+                final categoryObj = categoryController.categories.firstWhereOrNull((c) => c.name == category);
+                widget.onCategorySelected(categoryObj?.id ?? '');
               },
             );
-          }
-          
-          final category = categories[index - 1];
-          final isSelected = _selectedCategory == category;
-          
-          return _buildCategoryChip(
-            category,
-            isSelected,
-            () {
-              setState(() {
-                _selectedCategory = category;
-              });
-              widget.onCategorySelected(category);
-            },
-          );
-        },
-      ),
+          },
+        );
+      }),
     );
   }
 

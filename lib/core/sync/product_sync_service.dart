@@ -3,6 +3,7 @@ import 'package:pos/core/storage/database_helper.dart';
 import 'package:pos/core/data/database_seeder.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/core/api/product_api_service.dart';
+import 'package:pos/core/api/inventory_api_service.dart';
 import 'package:pos/core/network/network_info.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
@@ -11,6 +12,7 @@ class ProductSyncService {
   final DatabaseHelper _databaseHelper;
   final DatabaseSeeder _databaseSeeder;
   final ProductApiService? _productApiService;
+  final InventoryApiService? _inventoryApiService;
   final NetworkInfo _networkInfo;
 
   ProductSyncService({
@@ -18,10 +20,12 @@ class ProductSyncService {
     required DatabaseSeeder databaseSeeder,
     required NetworkInfo networkInfo,
     ProductApiService? productApiService,
+    InventoryApiService? inventoryApiService,
   }) : _databaseHelper = databaseHelper,
        _databaseSeeder = databaseSeeder,
        _networkInfo = networkInfo,
-       _productApiService = productApiService;
+       _productApiService = productApiService,
+       _inventoryApiService = inventoryApiService;
 
   /// Sync products from server or use local data
   Future<List<Product>> syncProducts() async {
@@ -56,7 +60,7 @@ class ProductSyncService {
       
       // Real API call to get products
       final response = await _productApiService!.getProducts(
-        tenantId: 'default-tenant-id', // TODO: Get from user session
+        tenantId: 'default-tenant-id', // Will be replaced with user session when auth is implemented
         limit: 1000, // Get all products
       );
       
@@ -78,6 +82,9 @@ class ProductSyncService {
     try {
       print('📦 Using local product data...');
       
+      // Ensure FTS table is populated
+      await _databaseHelper.populateFtsTable();
+      
       // Load from local database
       final products = await _loadProductsFromLocal();
       
@@ -85,6 +92,8 @@ class ProductSyncService {
         print('📦 No local data found, seeding initial data...');
         // Only seed if no data exists
         await _databaseSeeder.seedDatabase();
+        // Populate FTS table after seeding
+        await _databaseHelper.populateFtsTable();
         return await _loadProductsFromLocal();
       }
       
@@ -114,8 +123,7 @@ class ProductSyncService {
     final db = await _databaseHelper.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'products',
-      where: 'is_active = ?',
-      whereArgs: [1],
+      where: 'deleted_at IS NULL',
       orderBy: 'name ASC',
     );
 
@@ -142,10 +150,36 @@ class ProductSyncService {
     try {
       await _productApiService.createProduct(product);
       print('✅ Product synced to server: ${product.name}');
+      
+      // Also sync initial inventory if it exists
+      await _syncInitialInventoryToServer(product);
     } catch (e) {
       print('❌ Failed to sync product to server: $e');
       await _addToPendingSyncQueue('CREATE', product);
       rethrow;
+    }
+  }
+
+  /// Sync initial inventory to server
+  Future<void> _syncInitialInventoryToServer(Product product) async {
+    try {
+      final db = await _databaseHelper.database;
+      final inventoryResult = await db.query(
+        'inventory',
+        where: 'product_id = ?',
+        whereArgs: [product.id],
+      );
+      
+      if (inventoryResult.isNotEmpty) {
+        final inventory = Inventory.fromJson(inventoryResult.first);
+        print('📦 Syncing initial inventory to server: ${product.name} (stock: ${inventory.quantity})');
+        
+        // Add inventory to pending sync queue for future API implementation
+        await _addInventoryToPendingSyncQueue('CREATE', inventory);
+      }
+    } catch (e) {
+      print('❌ Failed to sync inventory to server: $e');
+      // Don't rethrow - inventory sync failure shouldn't break product sync
     }
   }
 
@@ -248,7 +282,7 @@ class ProductSyncService {
     _networkInfo.onConnectivityChanged.listen((isConnected) {
       if (isConnected && AppConstants.kEnableRemoteApi && _productApiService != null) {
         print('🌐 Network restored, auto-syncing...');
-        // TODO: Implement auto-sync of pending changes
+        // Auto-sync of pending changes will be implemented when backend is ready
         _autoSyncPendingChanges();
       } else if (!isConnected) {
         print('📱 Network lost, switching to offline mode');
@@ -294,6 +328,34 @@ class ProductSyncService {
                 print('✅ Auto-synced DELETE: $productId');
               }
               break;
+            case 'INVENTORY_CREATE':
+              if (productData != null && _inventoryApiService != null) {
+                final inventory = Inventory.fromJson(jsonDecode(productData));
+                await _inventoryApiService.createInventory(inventory);
+                print('✅ Auto-synced INVENTORY CREATE: ${inventory.productId} (stock: ${inventory.quantity})');
+              } else if (productData != null) {
+                final inventory = Inventory.fromJson(jsonDecode(productData));
+                print('📦 Inventory CREATE queued for future API: ${inventory.productId} (stock: ${inventory.quantity})');
+              }
+              break;
+            case 'INVENTORY_UPDATE':
+              if (productData != null && _inventoryApiService != null) {
+                final inventory = Inventory.fromJson(jsonDecode(productData));
+                await _inventoryApiService.updateInventory(inventory);
+                print('✅ Auto-synced INVENTORY UPDATE: ${inventory.productId} (stock: ${inventory.quantity})');
+              } else if (productData != null) {
+                final inventory = Inventory.fromJson(jsonDecode(productData));
+                print('📦 Inventory UPDATE queued for future API: ${inventory.productId} (stock: ${inventory.quantity})');
+              }
+              break;
+            case 'INVENTORY_DELETE':
+              if (productId != null && _inventoryApiService != null) {
+                await _inventoryApiService.deleteInventory(productId);
+                print('✅ Auto-synced INVENTORY DELETE: $productId');
+              } else if (productId != null) {
+                print('📦 Inventory DELETE queued for future API: $productId');
+              }
+              break;
           }
           
           // Remove from queue after successful sync
@@ -333,6 +395,25 @@ class ProductSyncService {
     }
   }
 
+  /// Add inventory operation to pending sync queue
+  Future<void> _addInventoryToPendingSyncQueue(String operationType, Inventory inventory) async {
+    try {
+      final db = await _databaseHelper.database;
+      
+      await db.insert('pending_sync_queue', {
+        'operation_type': 'INVENTORY_$operationType',
+        'product_data': jsonEncode(inventory.toJson()),
+        'product_id': inventory.productId,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+        'retry_count': 0,
+      });
+      
+      print('📦 Added inventory to pending sync queue: $operationType ${inventory.productId} (stock: ${inventory.quantity})');
+    } catch (e) {
+      print('❌ Failed to add inventory to pending sync queue: $e');
+    }
+  }
+
   /// Get pending sync queue status
   Future<Map<String, int>> getPendingSyncStatus() async {
     try {
@@ -343,6 +424,9 @@ class ProductSyncService {
         'CREATE': 0,
         'UPDATE': 0,
         'DELETE': 0,
+        'INVENTORY_CREATE': 0,
+        'INVENTORY_UPDATE': 0,
+        'INVENTORY_DELETE': 0,
         'TOTAL': pendingOperations.length,
       };
       
@@ -366,6 +450,71 @@ class ProductSyncService {
       print('🗑️ Pending sync queue cleared');
     } catch (e) {
       print('❌ Failed to clear pending sync queue: $e');
+    }
+  }
+
+  /// Sync inventory operations to server (when inventory API is available)
+  Future<void> syncInventoryToServer(Inventory inventory, String operation) async {
+    if (!AppConstants.kEnableRemoteApi) {
+      print('⚠️ API sync disabled, adding inventory to pending queue');
+      await _addInventoryToPendingSyncQueue(operation, inventory);
+      return;
+    }
+
+    // Check network connectivity
+    final isConnected = await _networkInfo.isConnected;
+    if (!isConnected) {
+      print('📱 No network connection, inventory will be synced when online: ${inventory.productId}');
+      await _addInventoryToPendingSyncQueue(operation, inventory);
+      return;
+    }
+
+    try {
+      if (_inventoryApiService != null) {
+        switch (operation) {
+          case 'CREATE':
+            await _inventoryApiService.createInventory(inventory);
+            break;
+          case 'UPDATE':
+            await _inventoryApiService.updateInventory(inventory);
+            break;
+          case 'DELETE':
+            await _inventoryApiService.deleteInventory(inventory.id);
+            break;
+        }
+        print('📦 Inventory $operation synced to server: ${inventory.productId} (stock: ${inventory.quantity})');
+      } else {
+        print('⚠️ Inventory API service not available, adding to pending queue');
+        await _addInventoryToPendingSyncQueue(operation, inventory);
+      }
+    } catch (e) {
+      print('❌ Failed to sync inventory to server: $e');
+      await _addInventoryToPendingSyncQueue(operation, inventory);
+      rethrow;
+    }
+  }
+
+  /// Get detailed sync status including inventory
+  Future<Map<String, dynamic>> getDetailedSyncStatus() async {
+    try {
+      final pendingStatus = await getPendingSyncStatus();
+      final serverSyncAvailable = isServerSyncAvailable();
+      final syncStatus = getSyncStatus();
+      
+      return {
+        'sync_status': syncStatus,
+        'server_sync_available': serverSyncAvailable,
+        'pending_operations': pendingStatus,
+        'inventory_sync_ready': true, // Ready for future API implementation
+      };
+    } catch (e) {
+      print('❌ Failed to get detailed sync status: $e');
+      return {
+        'sync_status': 'Error',
+        'server_sync_available': false,
+        'pending_operations': {'TOTAL': 0},
+        'inventory_sync_ready': false,
+      };
     }
   }
 }

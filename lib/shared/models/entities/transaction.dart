@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:equatable/equatable.dart';
 
 class Transaction extends Equatable {
@@ -66,7 +67,9 @@ class Transaction extends Equatable {
       total: (json['total'] as num).toDouble(),
       paymentMethod: json['payment_method'] as String?,
       paymentDetails: json['payment_details'] != null
-          ? Map<String, dynamic>.from(json['payment_details'] as Map)
+          ? (json['payment_details'] is String 
+              ? Map<String, dynamic>.from(jsonDecode(json['payment_details'] as String))
+              : Map<String, dynamic>.from(json['payment_details'] as Map))
           : {},
       amountPaid: (json['amount_paid'] as num?)?.toDouble(),
       changeAmount: (json['change_amount'] as num?)?.toDouble(),
@@ -100,7 +103,7 @@ class Transaction extends Equatable {
       'tax': tax,
       'total': total,
       'payment_method': paymentMethod,
-      'payment_details': paymentDetails,
+      'payment_details': jsonEncode(paymentDetails), // Convert Map to JSON string for SQLite
       'amount_paid': amountPaid,
       'change_amount': changeAmount,
       'status': status,

@@ -34,6 +34,17 @@ import 'package:pos/core/sync/product_sync_service.dart';
 import 'package:pos/core/ai/ai_api_service.dart';
 import 'package:pos/core/api/product_api_service.dart';
 import 'package:pos/core/services/permission_service.dart';
+import 'package:pos/core/services/unit_service.dart';
+import 'package:pos/core/api/unit_api_service.dart';
+import 'package:pos/core/api/category_api_service.dart';
+import 'package:pos/core/repositories/unit_repository.dart';
+import 'package:pos/core/repositories/unit_repository_impl.dart';
+import 'package:pos/core/repositories/category_repository.dart';
+import 'package:pos/core/repositories/category_repository_impl.dart';
+import 'package:pos/core/usecases/unit_usecases.dart';
+import 'package:pos/core/usecases/category_usecases.dart';
+import 'package:pos/core/controllers/unit_controller.dart';
+import 'package:pos/core/controllers/category_controller.dart';
 
 // Global feature toggles (switch to true when backend is ready)
 const bool kEnableRemoteApi = false; // affects auth repository data source
@@ -56,8 +67,9 @@ class DependencyInjection {
     // Storage
     Get.lazyPut<GetStorage>(() => GetStorage());
     
-    // Services
-    Get.lazyPut<PermissionService>(() => PermissionService());
+  // Services
+  Get.lazyPut<PermissionService>(() => PermissionService());
+  Get.lazyPut<UnitService>(() => UnitService());
 
     // Auth dependencies
     Get.lazyPut<AuthLocalDataSource>(() => AuthLocalDataSourceImpl(Get.find<GetStorage>()));
@@ -88,20 +100,64 @@ class DependencyInjection {
       networkInfo: Get.find<NetworkInfo>(),
       localDataSource: Get.find<LocalDataSource>(),
     ));
+    
+    Get.lazyPut<UnitRepository>(() => UnitRepositoryImpl(
+      localDataSource: Get.find<LocalDataSource>(),
+      unitApiService: kEnableRemoteApi ? Get.find<UnitApiService>() : null,
+      networkInfo: Get.find<NetworkInfo>(),
+    ));
+    
+    Get.lazyPut<CategoryRepository>(() => CategoryRepositoryImpl(
+      localDataSource: Get.find<LocalDataSource>(),
+      categoryApiService: kEnableRemoteApi ? Get.find<CategoryApiService>() : null,
+      networkInfo: Get.find<NetworkInfo>(),
+    ));
 
     // Use case dependencies
     Get.lazyPut<GetProducts>(() => GetProducts(Get.find<ProductRepository>()));
     Get.lazyPut<CreateProduct>(() => CreateProduct(Get.find<ProductRepository>()));
     Get.lazyPut<SearchProducts>(() => SearchProducts(Get.find<ProductRepository>()));
+    
+    // Unit use cases
+    Get.lazyPut<GetUnitsUseCase>(() => GetUnitsUseCase(Get.find<UnitRepository>()));
+    Get.lazyPut<CreateUnitUseCase>(() => CreateUnitUseCase(Get.find<UnitRepository>()));
+    Get.lazyPut<UpdateUnitUseCase>(() => UpdateUnitUseCase(Get.find<UnitRepository>()));
+    Get.lazyPut<DeleteUnitUseCase>(() => DeleteUnitUseCase(Get.find<UnitRepository>()));
+    Get.lazyPut<SearchUnitsUseCase>(() => SearchUnitsUseCase(Get.find<UnitRepository>()));
+    
+    // Category use cases
+    Get.lazyPut<GetCategoriesUseCase>(() => GetCategoriesUseCase(Get.find<CategoryRepository>()));
+    Get.lazyPut<CreateCategoryUseCase>(() => CreateCategoryUseCase(Get.find<CategoryRepository>()));
+    Get.lazyPut<UpdateCategoryUseCase>(() => UpdateCategoryUseCase(Get.find<CategoryRepository>()));
+    Get.lazyPut<DeleteCategoryUseCase>(() => DeleteCategoryUseCase(Get.find<CategoryRepository>()));
+    Get.lazyPut<SearchCategoriesUseCase>(() => SearchCategoriesUseCase(Get.find<CategoryRepository>()));
 
     // Controller dependencies - Will be injected via route bindings
+    Get.lazyPut<UnitController>(() => UnitController(
+      getUnitsUseCase: Get.find<GetUnitsUseCase>(),
+      createUnitUseCase: Get.find<CreateUnitUseCase>(),
+      updateUnitUseCase: Get.find<UpdateUnitUseCase>(),
+      deleteUnitUseCase: Get.find<DeleteUnitUseCase>(),
+      searchUnitsUseCase: Get.find<SearchUnitsUseCase>(),
+    ));
+    
+    Get.lazyPut<CategoryController>(() => CategoryController(
+      getCategoriesUseCase: Get.find<GetCategoriesUseCase>(),
+      createCategoryUseCase: Get.find<CreateCategoryUseCase>(),
+      updateCategoryUseCase: Get.find<UpdateCategoryUseCase>(),
+      deleteCategoryUseCase: Get.find<DeleteCategoryUseCase>(),
+      searchCategoriesUseCase: Get.find<SearchCategoriesUseCase>(),
+    ));
 
     // Controllers will be injected via route bindings
 
     // Sync dependencies
     Get.lazyPut<SyncLocalDataSource>(() => SyncLocalDataSourceImpl(database: Get.find<Database>()));
-    // When real API is ready, switch this registration based on kEnableSync
-    Get.lazyPut<SyncRemoteDataSource>(() => MockSyncRemoteDataSource());
+    // Register real SyncRemoteDataSource (mock removed)
+    Get.lazyPut<SyncRemoteDataSource>(() => SyncRemoteDataSourceImpl(
+      dio: Get.find<Dio>(),
+      storage: Get.find<GetStorage>(),
+    ));
     Get.lazyPut<SyncRepository>(() => SyncRepositoryImpl(
       localDataSource: Get.find(),
       remoteDataSource: Get.find(),
@@ -119,6 +175,8 @@ class DependencyInjection {
     if (kEnableRemoteApi) {
       Get.lazyPut<AIApiService>(() => AIApiService(dio: Get.find<Dio>()));
       Get.lazyPut<ProductApiService>(() => ProductApiService(dio: Get.find<Dio>()));
+      Get.lazyPut<UnitApiService>(() => UnitApiService(dio: Get.find<Dio>()));
+      Get.lazyPut<CategoryApiService>(() => CategoryApiService(dio: Get.find<Dio>()));
     }
     
     // AI Warung Assistant services

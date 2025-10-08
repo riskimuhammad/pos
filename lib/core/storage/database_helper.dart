@@ -137,6 +137,23 @@ class DatabaseHelper {
       )
     ''');
 
+    // Units table
+    await db.execute('''
+      CREATE TABLE units (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        deleted_at INTEGER,
+        sync_status TEXT DEFAULT 'synced',
+        last_synced_at INTEGER,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+      )
+    ''');
+
     // Products table
     await db.execute('''
       CREATE TABLE products (
@@ -382,15 +399,19 @@ class DatabaseHelper {
     ''');
 
     // FTS5 table for products search
-    await db.execute('''
-      CREATE VIRTUAL TABLE products_fts USING fts5(
-        product_id,
-        name,
-        sku,
-        content='products',
-        content_rowid='rowid'
-      )
-    ''');
+    try {
+      await db.execute('''
+        CREATE VIRTUAL TABLE products_fts USING fts5(
+          id,
+          name,
+          sku,
+          description
+        )
+      ''');
+      print('✅ FTS table created successfully');
+    } catch (e) {
+      print('⚠️ Warning: Could not create FTS table: $e');
+    }
   }
 
   Future<void> _createIndexes(Database db) async {
@@ -470,7 +491,7 @@ class DatabaseHelper {
     try {
       await db.execute('''
         CREATE TRIGGER products_fts_insert AFTER INSERT ON products BEGIN
-          INSERT INTO products_fts(product_id, name, sku) VALUES (NEW.id, NEW.name, NEW.sku);
+          INSERT INTO products_fts(id, name, sku, description) VALUES (NEW.id, NEW.name, NEW.sku, NEW.description);
         END
       ''');
     } catch (e) {
@@ -480,7 +501,7 @@ class DatabaseHelper {
     try {
       await db.execute('''
         CREATE TRIGGER products_fts_delete AFTER DELETE ON products BEGIN
-          DELETE FROM products_fts WHERE product_id = OLD.id;
+          DELETE FROM products_fts WHERE id = OLD.id;
         END
       ''');
     } catch (e) {
@@ -490,8 +511,8 @@ class DatabaseHelper {
     try {
       await db.execute('''
         CREATE TRIGGER products_fts_update AFTER UPDATE ON products BEGIN
-          DELETE FROM products_fts WHERE product_id = OLD.id;
-          INSERT INTO products_fts(product_id, name, sku) VALUES (NEW.id, NEW.name, NEW.sku);
+          DELETE FROM products_fts WHERE id = OLD.id;
+          INSERT INTO products_fts(id, name, sku, description) VALUES (NEW.id, NEW.name, NEW.sku, NEW.description);
         END
       ''');
     } catch (e) {
@@ -587,6 +608,30 @@ class DatabaseHelper {
         print('⚠️ Failed to create pending_sync_queue table: $e');
       }
     }
+    
+    // Migration to version 6: add units table
+    if (oldVersion < 6) {
+      try {
+        await db.execute('''
+          CREATE TABLE units (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            deleted_at INTEGER,
+            sync_status TEXT DEFAULT 'synced',
+            last_synced_at INTEGER,
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+          )
+        ''');
+        print('✅ Created units table');
+      } catch (e) {
+        print('⚠️ Failed to create units table: $e');
+      }
+    }
 
     // Migration to version 4: add product details, stock_movements.cost_price, regional_price
     if (oldVersion < 4) {
@@ -648,17 +693,21 @@ class DatabaseHelper {
     }
 
     // Create FTS5 table if it doesn't exist
-    final fts = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='products_fts'");
-    if (fts.isEmpty) {
-      await db.execute('''
-        CREATE VIRTUAL TABLE products_fts USING fts5(
-          product_id,
-          name,
-          sku,
-          content='products',
-          content_rowid='rowid'
-        )
-      ''');
+    try {
+      final fts = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='products_fts'");
+      if (fts.isEmpty) {
+        await db.execute('''
+          CREATE VIRTUAL TABLE products_fts USING fts5(
+            id,
+            name,
+            sku,
+            description
+          )
+        ''');
+        print('✅ FTS table created during migration');
+      }
+    } catch (e) {
+      print('⚠️ Warning: Could not create FTS table during migration: $e');
     }
 
     // Ensure all required columns exist in products table
@@ -711,6 +760,94 @@ class DatabaseHelper {
     } catch (e) {
       print('❌ Failed to reset database: $e');
       rethrow;
+    }
+  }
+
+  /// Ensure FTS table is populated with existing products
+  Future<void> populateFtsTable() async {
+    try {
+      final db = await database;
+      
+      // Check if FTS table exists
+      final fts = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='products_fts'");
+      if (fts.isEmpty) {
+        print('⚠️ FTS table does not exist, skipping population');
+        return;
+      }
+      
+      // Check if FTS table has data
+      final count = await db.rawQuery("SELECT COUNT(*) as count FROM products_fts");
+      final ftsCount = count.first['count'] as int;
+      
+      if (ftsCount == 0) {
+        print('🔄 Populating FTS table with existing products...');
+        
+        // Insert all existing products into FTS table
+        await db.execute('''
+          INSERT INTO products_fts(id, name, sku, description)
+          SELECT id, name, sku, description FROM products WHERE deleted_at IS NULL
+        ''');
+        
+        final newCount = await db.rawQuery("SELECT COUNT(*) as count FROM products_fts");
+        print('✅ FTS table populated with ${newCount.first['count']} products');
+      } else {
+        print('✅ FTS table already has $ftsCount products');
+      }
+    } catch (e) {
+      print('⚠️ Warning: Could not populate FTS table: $e');
+      // Try to recreate FTS table if there's a schema issue
+      await _recreateFtsTable();
+    }
+  }
+
+  /// Recreate FTS table if there are schema issues
+  Future<void> _recreateFtsTable() async {
+    try {
+      final db = await database;
+      print('🔄 Recreating FTS table...');
+      
+      // Drop existing FTS table
+      await db.execute('DROP TABLE IF EXISTS products_fts');
+      
+      // Recreate FTS table
+      await db.execute('''
+        CREATE VIRTUAL TABLE products_fts USING fts5(
+          id,
+          name,
+          sku,
+          description
+        )
+      ''');
+      
+      // Recreate triggers
+      await db.execute('''
+        CREATE TRIGGER products_fts_insert AFTER INSERT ON products BEGIN
+          INSERT INTO products_fts(id, name, sku, description) VALUES (NEW.id, NEW.name, NEW.sku, NEW.description);
+        END
+      ''');
+      
+      await db.execute('''
+        CREATE TRIGGER products_fts_delete AFTER DELETE ON products BEGIN
+          DELETE FROM products_fts WHERE id = OLD.id;
+        END
+      ''');
+      
+      await db.execute('''
+        CREATE TRIGGER products_fts_update AFTER UPDATE ON products BEGIN
+          DELETE FROM products_fts WHERE id = OLD.id;
+          INSERT INTO products_fts(id, name, sku, description) VALUES (NEW.id, NEW.name, NEW.sku, NEW.description);
+        END
+      ''');
+      
+      // Populate with existing data
+      await db.execute('''
+        INSERT INTO products_fts(id, name, sku, description)
+        SELECT id, name, sku, description FROM products WHERE deleted_at IS NULL
+      ''');
+      
+      print('✅ FTS table recreated successfully');
+    } catch (e) {
+      print('❌ Failed to recreate FTS table: $e');
     }
   }
 }
