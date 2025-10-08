@@ -2,6 +2,7 @@ import 'package:pos/core/network/network_info.dart';
 import 'package:pos/core/repositories/base_repository.dart';
 import 'package:pos/core/errors/failures.dart';
 import 'package:pos/core/errors/exceptions.dart';
+import 'package:pos/features/auth/domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../datasources/auth_mock_datasource.dart';

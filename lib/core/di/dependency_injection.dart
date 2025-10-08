@@ -18,8 +18,6 @@ import 'package:pos/features/products/domain/usecases/get_products.dart';
 import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
-import 'package:pos/features/pos/presentation/controllers/dashboard_controller.dart';
-import 'package:pos/features/ai_assistant/presentation/controllers/ai_assistant_controller.dart';
 import 'package:pos/core/sync/presentation/controllers/sync_controller.dart';
 import 'package:pos/core/sync/data/datasources/sync_local_datasource.dart';
 import 'package:pos/core/sync/data/datasources/sync_remote_datasource.dart';
@@ -97,13 +95,7 @@ class DependencyInjection {
       searchProducts: Get.find<SearchProducts>(),
     ));
 
-    // Dashboard controller
-    Get.lazyPut<DashboardController>(() => DashboardController());
-
-    // AI Scan removed
-    
-    // AI Assistant controller
-    Get.lazyPut<AIAssistantController>(() => AIAssistantController());
+    // Controllers will be injected via route bindings
 
     // Sync dependencies
     Get.lazyPut<SyncLocalDataSource>(() => SyncLocalDataSourceImpl(database: Get.find<Database>()));

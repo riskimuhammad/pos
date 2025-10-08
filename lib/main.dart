@@ -7,11 +7,8 @@ import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/localization/language_controller.dart';
+import 'core/routing/app_routes.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
-import 'features/auth/presentation/pages/login_page.dart';
-import 'features/auth/presentation/middleware/auth_middleware.dart';
-import 'features/pos/presentation/pages/dashboard_page.dart';
-import 'features/ai_assistant/presentation/pages/ai_assistant_page.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 void main() async {
@@ -61,27 +58,7 @@ class PosApp extends StatelessWidget {
       ],
       
       home: const SplashScreen(),
-      getPages: [
-        GetPage(
-          name: '/login',
-          page: () => const LoginPage(),
-          transition: Transition.fadeIn,
-          middlewares: [GuestMiddleware()],
-        ),
-        GetPage(
-          name: '/dashboard',
-          page: () => const DashboardPage(),
-          transition: Transition.fadeIn,
-          middlewares: [AuthMiddleware()],
-        ),
-        // AI Scan route removed
-        GetPage(
-          name: '/ai-assistant',
-          page: () => const AIAssistantPage(),
-          transition: Transition.rightToLeft,
-          middlewares: [AuthMiddleware()],
-        ),
-      ],
+      getPages: AppRoutes.pages,
     );
   }
 }
@@ -113,15 +90,15 @@ class _SplashScreenState extends State<SplashScreen> {
       print('🔍 Debug - Main: Has session: $hasSession');
       if (hasSession) {
         print('✅ Debug - Main: Redirecting to dashboard');
-        Get.offNamed('/dashboard');
+        Get.offNamed(AppRoutes.dashboard);
       } else {
         print('❌ Debug - Main: Redirecting to login');
-        Get.offNamed('/login');
+        Get.offNamed(AppRoutes.login);
       }
     } catch (e) {
       // If AuthController fails, go to login
       print('❌ Debug - Main: Error during session check: $e');
-      Get.offNamed('/login');
+      Get.offNamed(AppRoutes.login);
     }
   }
 
