@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'dart:convert';
 
 class Product extends Equatable {
   // Helper function to parse boolean from various types
@@ -65,7 +66,7 @@ class Product extends Equatable {
       name: json['name'] as String,
       categoryId: json['category_id'] as String?,
       description: json['description'] as String?,
-      unit: json['unit'] as String? ?? 'pcs',
+      unit: json['uom'] as String? ?? 'pcs',
       priceBuy: (json['price_buy'] as num?)?.toDouble() ?? 0.0,
       priceSell: (json['price_sell'] as num).toDouble(),
       weight: (json['weight'] as num?)?.toDouble(),
@@ -75,10 +76,14 @@ class Product extends Equatable {
       isActive: _parseBoolean(json['is_active'], true),
       minStock: json['min_stock'] as int? ?? 0,
       photos: json['photos'] != null
-          ? List<String>.from(json['photos'] as List)
+          ? (json['photos'] is String 
+              ? List<String>.from(jsonDecode(json['photos'] as String))
+              : List<String>.from(json['photos'] as List))
           : [],
       attributes: json['attributes'] != null
-          ? Map<String, dynamic>.from(json['attributes'] as Map)
+          ? (json['attributes'] is String
+              ? Map<String, dynamic>.from(jsonDecode(json['attributes'] as String))
+              : Map<String, dynamic>.from(json['attributes'] as Map))
           : {},
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(json['updated_at'] as int),
@@ -100,7 +105,7 @@ class Product extends Equatable {
       'name': name,
       'category_id': categoryId,
       'description': description,
-      'unit': unit,
+      'uom': unit,
       'price_buy': priceBuy,
       'price_sell': priceSell,
       'weight': weight,
@@ -109,8 +114,8 @@ class Product extends Equatable {
       'is_expirable': isExpirable ? 1 : 0,
       'is_active': isActive ? 1 : 0,
       'min_stock': minStock,
-      'photos': photos,
-      'attributes': attributes,
+      'photos': jsonEncode(photos),
+      'attributes': jsonEncode(attributes),
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
       'deleted_at': deletedAt?.millisecondsSinceEpoch,

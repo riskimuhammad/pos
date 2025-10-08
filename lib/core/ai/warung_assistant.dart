@@ -3,22 +3,36 @@ import 'package:get/get.dart';
 import 'package:pos/core/storage/database_helper.dart';
 import 'package:pos/core/ai/sales_predictor.dart';
 import 'package:pos/core/ai/price_recommender.dart';
+import 'package:pos/core/ai/ai_api_service.dart';
+import 'package:pos/core/constants/app_constants.dart';
 
 class WarungAssistant extends GetxController {
   final DatabaseHelper _databaseHelper;
   final SalesPredictor _salesPredictor;
   final PriceRecommender _priceRecommender;
+  final AIApiService? _apiService;
   
   WarungAssistant({
     required DatabaseHelper databaseHelper,
     required SalesPredictor salesPredictor,
     required PriceRecommender priceRecommender,
+    AIApiService? apiService,
   }) : _databaseHelper = databaseHelper,
        _salesPredictor = salesPredictor,
-       _priceRecommender = priceRecommender;
+       _priceRecommender = priceRecommender,
+       _apiService = apiService;
 
   // Dashboard utama dengan insight bisnis
   Future<WarungInsight> getDailyInsight() async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getDailyInsight();
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     
     // Data hari ini
@@ -107,6 +121,15 @@ class WarungAssistant extends GetxController {
   Future<BusinessPerformance> getBusinessPerformance({
     int daysBack = 30,
   }) async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getBusinessPerformance(daysBack: daysBack);
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     final startDate = DateTime.now().subtract(Duration(days: daysBack)).millisecondsSinceEpoch;
     
@@ -174,6 +197,15 @@ class WarungAssistant extends GetxController {
 
   // Rekomendasi strategi bisnis
   Future<List<BusinessRecommendation>> getBusinessRecommendations() async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getBusinessRecommendations();
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final recommendations = <BusinessRecommendation>[];
     
     // 1. Analisis produk yang perlu di-review
@@ -235,6 +267,15 @@ class WarungAssistant extends GetxController {
   Future<BusinessForecast> getBusinessForecast({
     int daysAhead = 30,
   }) async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getBusinessForecast(daysAhead: daysAhead);
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     
     // Analisis trend revenue 30 hari terakhir

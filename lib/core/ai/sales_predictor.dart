@@ -1,23 +1,36 @@
 import 'dart:math';
 import 'package:get/get.dart';
 import 'package:pos/core/storage/database_helper.dart';
-// import 'package:pos/core/ai/ai_api_service.dart';
-// import 'package:pos/core/constants/app_constants.dart';
+import 'package:pos/core/ai/ai_api_service.dart';
+import 'package:pos/core/constants/app_constants.dart';
 
 class SalesPredictor extends GetxController {
   final DatabaseHelper _databaseHelper;
-  // final AIApiService? _apiService;
+  final AIApiService? _apiService;
   
   SalesPredictor({
     required DatabaseHelper databaseHelper,
-    // AIApiService? apiService,
-  }) : _databaseHelper = databaseHelper;
+    AIApiService? apiService,
+  }) : _databaseHelper = databaseHelper,
+       _apiService = apiService;
 
   // Prediksi penjualan berdasarkan data historis
   Future<SalesPrediction> predictSales({
     required String productId,
     int daysAhead = 7,
   }) async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getSalesPrediction(
+          productId: productId,
+          daysAhead: daysAhead,
+        );
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     // Local calculation
     final db = await _databaseHelper.database;
     
@@ -126,6 +139,15 @@ class SalesPredictor extends GetxController {
     int limit = 10,
     int daysBack = 30,
   }) async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getTopProducts(limit: limit, daysBack: daysBack);
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     final daysAgo = DateTime.now().subtract(Duration(days: daysBack)).millisecondsSinceEpoch;
     
@@ -166,6 +188,15 @@ class SalesPredictor extends GetxController {
     int limit = 5,
     int daysBack = 30,
   }) async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getTopCategories(limit: limit, daysBack: daysBack);
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     final daysAgo = DateTime.now().subtract(Duration(days: daysBack)).millisecondsSinceEpoch;
     

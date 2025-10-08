@@ -1,12 +1,17 @@
-// import 'dart:math'; // removed unused import
 import 'package:get/get.dart';
 import 'package:pos/core/storage/database_helper.dart';
+import 'package:pos/core/ai/ai_api_service.dart';
+import 'package:pos/core/constants/app_constants.dart';
 
 class PriceRecommender extends GetxController {
   final DatabaseHelper _databaseHelper;
+  final AIApiService? _apiService;
   
-  PriceRecommender({required DatabaseHelper databaseHelper}) 
-      : _databaseHelper = databaseHelper;
+  PriceRecommender({
+    required DatabaseHelper databaseHelper,
+    AIApiService? apiService,
+  }) : _databaseHelper = databaseHelper,
+       _apiService = apiService;
 
   // Rekomendasi harga optimal berdasarkan analisis kompetitif dan margin
   Future<PriceRecommendation> recommendPrice({
@@ -14,6 +19,19 @@ class PriceRecommender extends GetxController {
     double? competitorPrice,
     double? targetMargin,
   }) async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getPriceRecommendation(
+          productId: productId,
+          competitorPrice: competitorPrice,
+          targetMargin: targetMargin,
+        );
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     
     // Ambil data produk
@@ -107,6 +125,15 @@ class PriceRecommender extends GetxController {
   Future<List<ProductRecommendation>> recommendProducts({
     int limit = 10,
   }) async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getProductRecommendations(limit: limit);
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     
     // Analisis kategori yang paling menguntungkan
@@ -153,6 +180,15 @@ class PriceRecommender extends GetxController {
 
   // Analisis produk yang perlu di-review harganya
   Future<List<PriceReviewItem>> getProductsNeedingPriceReview() async {
+    // Try API first if enabled
+    if (AppConstants.kEnableRemoteApi && _apiService != null) {
+      try {
+        return await _apiService!.getPriceReviewItems();
+      } catch (e) {
+        print('API call failed, falling back to local calculation: $e');
+      }
+    }
+    
     final db = await _databaseHelper.database;
     
     // Produk dengan margin rendah atau tidak ada penjualan

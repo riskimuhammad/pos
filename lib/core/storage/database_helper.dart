@@ -366,6 +366,17 @@ class DatabaseHelper {
         updated_at INTEGER NOT NULL
       )
     ''');
+
+    // FTS5 table for products search
+    await db.execute('''
+      CREATE VIRTUAL TABLE products_fts USING fts5(
+        product_id,
+        name,
+        sku,
+        content='products',
+        content_rowid='rowid'
+      )
+    ''');
   }
 
   Future<void> _createIndexes(Database db) async {
@@ -382,6 +393,7 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX idx_sync_queue_table ON sync_queue(table_name, is_synced)');
     // index for ai_scans removed
     await db.execute('CREATE INDEX idx_ai_training_samples_status ON ai_training_samples(sync_status, created_at)');
+    // FTS5 index (automatically created by FTS5)
   }
 
   Future<void> _createTriggers(Database db) async {
@@ -440,25 +452,37 @@ class DatabaseHelper {
       END
     ''');
 
-    // FTS5 triggers for products
-    await db.execute('''
-      CREATE TRIGGER products_fts_insert AFTER INSERT ON products BEGIN
-        INSERT INTO products_fts(product_id, name, sku) VALUES (NEW.id, NEW.name, NEW.sku);
-      END
-    ''');
+    // FTS5 triggers for products (only if FTS table exists)
+    try {
+      await db.execute('''
+        CREATE TRIGGER products_fts_insert AFTER INSERT ON products BEGIN
+          INSERT INTO products_fts(product_id, name, sku) VALUES (NEW.id, NEW.name, NEW.sku);
+        END
+      ''');
+    } catch (e) {
+      print('Warning: Could not create FTS insert trigger: $e');
+    }
 
-    await db.execute('''
-      CREATE TRIGGER products_fts_delete AFTER DELETE ON products BEGIN
-        DELETE FROM products_fts WHERE product_id = OLD.id;
-      END
-    ''');
+    try {
+      await db.execute('''
+        CREATE TRIGGER products_fts_delete AFTER DELETE ON products BEGIN
+          DELETE FROM products_fts WHERE product_id = OLD.id;
+        END
+      ''');
+    } catch (e) {
+      print('Warning: Could not create FTS delete trigger: $e');
+    }
 
-    await db.execute('''
-      CREATE TRIGGER products_fts_update AFTER UPDATE ON products BEGIN
-        DELETE FROM products_fts WHERE product_id = OLD.id;
-        INSERT INTO products_fts(product_id, name, sku) VALUES (NEW.id, NEW.name, NEW.sku);
-      END
-    ''');
+    try {
+      await db.execute('''
+        CREATE TRIGGER products_fts_update AFTER UPDATE ON products BEGIN
+          DELETE FROM products_fts WHERE product_id = OLD.id;
+          INSERT INTO products_fts(product_id, name, sku) VALUES (NEW.id, NEW.name, NEW.sku);
+        END
+      ''');
+    } catch (e) {
+      print('Warning: Could not create FTS update trigger: $e');
+    }
   }
 
   Future<void> _insertDefaultData(Database db) async {
@@ -587,6 +611,44 @@ class DatabaseHelper {
     if (scans.isNotEmpty) {
       await db.execute('DROP TABLE IF EXISTS ai_scans');
     }
+
+    // Create FTS5 table if it doesn't exist
+    final fts = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='products_fts'");
+    if (fts.isEmpty) {
+      await db.execute('''
+        CREATE VIRTUAL TABLE products_fts USING fts5(
+          product_id,
+          name,
+          sku,
+          content='products',
+          content_rowid='rowid'
+        )
+      ''');
+    }
+
+    // Ensure all required columns exist in products table
+    final productCols = await db.rawQuery("PRAGMA table_info(products)");
+    final productColNames = productCols.map((e) => e['name'] as String).toSet();
+    
+    final requiredColumns = {
+      'brand': "ALTER TABLE products ADD COLUMN brand TEXT",
+      'variant': "ALTER TABLE products ADD COLUMN variant TEXT", 
+      'pack_size': "ALTER TABLE products ADD COLUMN pack_size TEXT",
+      'uom': "ALTER TABLE products ADD COLUMN uom TEXT DEFAULT 'pcs'",
+      'reorder_point': "ALTER TABLE products ADD COLUMN reorder_point INTEGER DEFAULT 0",
+      'reorder_qty': "ALTER TABLE products ADD COLUMN reorder_qty INTEGER DEFAULT 0",
+    };
+    
+    for (final entry in requiredColumns.entries) {
+      if (!productColNames.contains(entry.key)) {
+        try {
+          await db.execute(entry.value);
+          print('Added missing column: ${entry.key}');
+        } catch (e) {
+          print('Warning: Could not add column ${entry.key}: $e');
+        }
+      }
+    }
   }
 
   Future<void> close() async {
@@ -602,5 +664,18 @@ class DatabaseHelper {
     final path = join(dbPath, AppConstants.databaseName);
     await databaseFactory.deleteDatabase(path);
     _database = null;
+  }
+
+  /// Reset database by deleting and recreating it
+  Future<void> resetDatabase() async {
+    try {
+      print('🔄 Resetting database...');
+      await deleteDatabase();
+      _database = await _initDatabase();
+      print('✅ Database reset completed');
+    } catch (e) {
+      print('❌ Failed to reset database: $e');
+      rethrow;
+    }
   }
 }

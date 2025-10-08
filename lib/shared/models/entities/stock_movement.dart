@@ -17,6 +17,7 @@ class StockMovement extends Equatable {
   final String locationId;
   final StockMovementType type;
   final int quantity;
+  final double? costPrice;
   final String? referenceType;
   final String? referenceId;
   final String? notes;
@@ -32,6 +33,7 @@ class StockMovement extends Equatable {
     required this.locationId,
     required this.type,
     required this.quantity,
+    this.costPrice,
     this.referenceType,
     this.referenceId,
     this.notes,
@@ -52,6 +54,7 @@ class StockMovement extends Equatable {
         orElse: () => StockMovementType.adjustment,
       ),
       quantity: json['quantity'] as int,
+      costPrice: (json['cost_price'] as num?)?.toDouble(),
       referenceType: json['reference_type'] as String?,
       referenceId: json['reference_id'] as String?,
       notes: json['notes'] as String?,
@@ -72,6 +75,7 @@ class StockMovement extends Equatable {
       'location_id': locationId,
       'type': type.name.toUpperCase(),
       'quantity': quantity,
+      'cost_price': costPrice,
       'reference_type': referenceType,
       'reference_id': referenceId,
       'notes': notes,
@@ -89,6 +93,7 @@ class StockMovement extends Equatable {
     String? locationId,
     StockMovementType? type,
     int? quantity,
+    double? costPrice,
     String? referenceType,
     String? referenceId,
     String? notes,
@@ -104,6 +109,7 @@ class StockMovement extends Equatable {
       locationId: locationId ?? this.locationId,
       type: type ?? this.type,
       quantity: quantity ?? this.quantity,
+      costPrice: costPrice ?? this.costPrice,
       referenceType: referenceType ?? this.referenceType,
       referenceId: referenceId ?? this.referenceId,
       notes: notes ?? this.notes,
@@ -151,6 +157,7 @@ class StockMovement extends Equatable {
         locationId,
         type,
         quantity,
+        costPrice,
         referenceType,
         referenceId,
         notes,

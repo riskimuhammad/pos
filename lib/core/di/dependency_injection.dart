@@ -17,7 +17,6 @@ import 'package:pos/features/products/data/repositories/product_repository_impl.
 import 'package:pos/features/products/domain/usecases/get_products.dart';
 import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
-import 'package:pos/features/products/presentation/controllers/product_controller.dart';
 import 'package:pos/core/sync/presentation/controllers/sync_controller.dart';
 import 'package:pos/core/sync/data/datasources/sync_local_datasource.dart';
 import 'package:pos/core/sync/data/datasources/sync_remote_datasource.dart';
@@ -30,7 +29,9 @@ import 'package:pos/core/ai/ai_data_service.dart';
 import 'package:pos/core/ai/sales_predictor.dart';
 import 'package:pos/core/ai/price_recommender.dart';
 import 'package:pos/core/ai/warung_assistant.dart';
-// import 'package:pos/core/ai/ai_api_service.dart';
+import 'package:pos/core/data/database_seeder.dart';
+import 'package:pos/core/sync/product_sync_service.dart';
+import 'package:pos/core/ai/ai_api_service.dart';
 
 // Global feature toggles (switch to true when backend is ready)
 const bool kEnableRemoteApi = false; // affects auth repository data source
@@ -88,12 +89,7 @@ class DependencyInjection {
     Get.lazyPut<CreateProduct>(() => CreateProduct(Get.find<ProductRepository>()));
     Get.lazyPut<SearchProducts>(() => SearchProducts(Get.find<ProductRepository>()));
 
-    // Controller dependencies
-    Get.lazyPut<ProductController>(() => ProductController(
-      getProducts: Get.find<GetProducts>(),
-      createProduct: Get.find<CreateProduct>(),
-      searchProducts: Get.find<SearchProducts>(),
-    ));
+    // Controller dependencies - Will be injected via route bindings
 
     // Controllers will be injected via route bindings
 
@@ -114,18 +110,34 @@ class DependencyInjection {
     // AI services
     Get.lazyPut<AIDataService>(() => AIDataService(database: Get.find<Database>()));
     
+    // AI API Service (conditional registration)
+    if (kEnableRemoteApi) {
+      Get.lazyPut<AIApiService>(() => AIApiService(dio: Get.find<Dio>()));
+    }
+    
     // AI Warung Assistant services
     Get.lazyPut<SalesPredictor>(() => SalesPredictor(
       databaseHelper: Get.find<DatabaseHelper>(),
+      apiService: kEnableRemoteApi ? Get.find<AIApiService>() : null,
     ));
     Get.lazyPut<PriceRecommender>(() => PriceRecommender(
       databaseHelper: Get.find<DatabaseHelper>(),
+      apiService: kEnableRemoteApi ? Get.find<AIApiService>() : null,
     ));
     Get.lazyPut<WarungAssistant>(() => WarungAssistant(
       databaseHelper: Get.find<DatabaseHelper>(),
       salesPredictor: Get.find<SalesPredictor>(),
       priceRecommender: Get.find<PriceRecommender>(),
+      apiService: kEnableRemoteApi ? Get.find<AIApiService>() : null,
     ));
+
+        // Data services
+        Get.lazyPut<DatabaseSeeder>(() => DatabaseSeeder(Get.find<DatabaseHelper>()));
+        Get.lazyPut<ProductSyncService>(() => ProductSyncService(
+          databaseHelper: Get.find<DatabaseHelper>(),
+          databaseSeeder: Get.find<DatabaseSeeder>(),
+          apiService: null, // Will be set when API is ready
+        ));
 
     // Language controller
     Get.put<LanguageController>(LanguageController());

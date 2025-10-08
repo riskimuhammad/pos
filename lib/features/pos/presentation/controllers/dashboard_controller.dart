@@ -139,12 +139,7 @@ class DashboardController extends GetxController {
 
   // Navigate to Products
   void navigateToProducts() {
-    // TODO: Implement navigation to Products
-    Get.snackbar(
-      'Info',
-      'Navigasi ke Produk akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
-    );
+    Get.toNamed('/products');
   }
 
   // Navigate to Inventory

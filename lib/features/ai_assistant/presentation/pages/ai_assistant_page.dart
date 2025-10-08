@@ -615,12 +615,9 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
                 fontWeight: FontWeight.w500,
               ),
             ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _getPriorityChip(rec.priority),
+
+            const SizedBox(height: 4),
+             _getPriorityChip(rec.priority),
             const SizedBox(height: 4),
             Text(
               rec.impact,
@@ -631,6 +628,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> with TickerProviderSt
             ),
           ],
         ),
+       
       ),
     );
   }

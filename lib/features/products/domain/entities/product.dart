@@ -10,6 +10,12 @@ class Product {
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? brand;
+  final String? variant;
+  final String? packSize;
+  final String? uom;
+  final int? reorderPoint;
+  final int? reorderQty;
 
   const Product({
     required this.id,
@@ -23,6 +29,12 @@ class Product {
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
+    this.brand,
+    this.variant,
+    this.packSize,
+    this.uom,
+    this.reorderPoint,
+    this.reorderQty,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -38,6 +50,12 @@ class Product {
       isActive: json['is_active'] as bool? ?? true,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(json['updated_at'] as int),
+      brand: json['brand'] as String?,
+      variant: json['variant'] as String?,
+      packSize: json['pack_size'] as String?,
+      uom: json['uom'] as String?,
+      reorderPoint: json['reorder_point'] as int?,
+      reorderQty: json['reorder_qty'] as int?,
     );
   }
 
@@ -54,6 +72,12 @@ class Product {
       'is_active': isActive,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
+      'brand': brand,
+      'variant': variant,
+      'pack_size': packSize,
+      'uom': uom,
+      'reorder_point': reorderPoint,
+      'reorder_qty': reorderQty,
     };
   }
 
@@ -69,6 +93,12 @@ class Product {
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? brand,
+    String? variant,
+    String? packSize,
+    String? uom,
+    int? reorderPoint,
+    int? reorderQty,
   }) {
     return Product(
       id: id ?? this.id,
@@ -82,6 +112,12 @@ class Product {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      brand: brand ?? this.brand,
+      variant: variant ?? this.variant,
+      packSize: packSize ?? this.packSize,
+      uom: uom ?? this.uom,
+      reorderPoint: reorderPoint ?? this.reorderPoint,
+      reorderQty: reorderQty ?? this.reorderQty,
     );
   }
 

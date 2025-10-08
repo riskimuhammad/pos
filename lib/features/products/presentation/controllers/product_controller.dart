@@ -4,16 +4,22 @@ import 'package:pos/features/products/domain/usecases/get_products.dart';
 import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
 import 'package:pos/shared/models/entities/entities.dart';
+import 'package:pos/core/sync/product_sync_service.dart';
+import 'package:pos/core/data/database_seeder.dart';
 
 class ProductController extends GetxController {
   final GetProducts getProducts;
   final CreateProduct createProduct;
   final SearchProducts searchProducts;
+  final ProductSyncService productSyncService;
+  final DatabaseSeeder databaseSeeder;
 
   ProductController({
     required this.getProducts,
     required this.createProduct,
     required this.searchProducts,
+    required this.productSyncService,
+    required this.databaseSeeder,
   });
 
   // Observable variables
@@ -42,17 +48,11 @@ class ProductController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
 
-      // TODO: Get tenant ID from auth service
-      const tenantId = 'default-tenant-id';
+      // Use sync service to get products (handles dummy data vs server sync)
+      final productList = await productSyncService.syncProducts();
+      products.value = productList;
+      _applyFilters();
       
-      final result = await getProducts(tenantId);
-      result.fold(
-        (failure) => _handleFailure(failure),
-        (productList) {
-          products.value = productList;
-          _applyFilters();
-        },
-      );
     } catch (e) {
       errorMessage.value = 'Failed to load products: $e';
     } finally {
@@ -71,6 +71,10 @@ class ProductController extends GetxController {
         (createdProduct) {
           products.add(createdProduct);
           _applyFilters();
+          
+          // Sync to server if enabled
+          productSyncService.syncProductToServer(createdProduct);
+          
           Get.snackbar('Success', 'Product created successfully');
         },
       );
@@ -112,6 +116,16 @@ class ProductController extends GetxController {
     searchQuery.value = '';
     selectedCategoryId.value = '';
     filteredProducts.clear();
+  }
+
+  void clearSearch() {
+    searchQuery.value = '';
+    _applyFilters();
+  }
+
+  void clearCategoryFilter() {
+    selectedCategoryId.value = '';
+    _applyFilters();
   }
 
   void _applyFilters() {
@@ -187,6 +201,72 @@ class ProductController extends GetxController {
   }
 
   List<Product> getLowStockProducts() {
-    return products.where((product) => product.minStock > 0).toList();
+    return products.where((product) {
+      final currentStock = product.attributes['current_stock'] as int? ?? product.minStock;
+      final reorderPoint = product.attributes['reorder_point'] as int? ?? product.minStock;
+      return currentStock <= reorderPoint;
+    }).toList();
+  }
+
+  // Delete product
+  Future<void> deleteProduct(String productId) async {
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      // Remove from local list
+      products.removeWhere((product) => product.id == productId);
+      filteredProducts.removeWhere((product) => product.id == productId);
+      
+      // Sync to server if enabled
+      productSyncService.deleteProductFromServer(productId);
+      
+      Get.snackbar(
+        'Success',
+        'Product deleted successfully',
+        snackPosition: SnackPosition.TOP,
+      );
+    } catch (e) {
+      errorMessage.value = 'Failed to delete product: $e';
+      Get.snackbar(
+        'Error',
+        'Failed to delete product: $e',
+        snackPosition: SnackPosition.TOP,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Force refresh from server
+  Future<void> forceRefresh() async {
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      final productList = await productSyncService.forceRefreshFromServer();
+      products.value = productList;
+      _applyFilters();
+      
+      Get.snackbar(
+        'Success',
+        'Products refreshed successfully',
+        snackPosition: SnackPosition.TOP,
+      );
+    } catch (e) {
+      errorMessage.value = 'Failed to refresh products: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Get sync status
+  String getSyncStatus() {
+    return productSyncService.getSyncStatus();
+  }
+
+  // Check if server sync is available
+  bool isServerSyncAvailable() {
+    return productSyncService.isServerSyncAvailable();
   }
 }
