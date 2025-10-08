@@ -65,12 +65,7 @@ class CategoryController extends GetxController {
       final createdCategory = await _createCategoryUseCase(category);
       _categories.add(createdCategory);
       _filteredCategories.add(createdCategory);
-      
-      Get.snackbar(
-        'Success',
-        'Category created successfully',
-        snackPosition: SnackPosition.TOP,
-      );
+     
     } catch (e) {
       print('❌ Error creating category: $e');
       Get.snackbar(
@@ -100,11 +95,7 @@ class CategoryController extends GetxController {
         _filteredCategories[filteredIndex] = updatedCategory;
       }
       
-      Get.snackbar(
-        'Success',
-        'Category updated successfully',
-        snackPosition: SnackPosition.TOP,
-      );
+    
     } catch (e) {
       print('❌ Error updating category: $e');
       Get.snackbar(
@@ -126,12 +117,7 @@ class CategoryController extends GetxController {
       // Remove from lists
       _categories.removeWhere((c) => c.id == categoryId);
       _filteredCategories.removeWhere((c) => c.id == categoryId);
-      
-      Get.snackbar(
-        'Success',
-        'Category deleted successfully',
-        snackPosition: SnackPosition.TOP,
-      );
+   
     } catch (e) {
       print('❌ Error deleting category: $e');
       Get.snackbar(

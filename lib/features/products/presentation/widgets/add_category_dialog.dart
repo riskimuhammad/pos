@@ -424,14 +424,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
         widget.onSubmit(category);
         
         // Show success message
-        Get.snackbar(
-          'Success',
-          'Kategori "${category.name}" berhasil ditambahkan',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: AppTheme.successColor,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-        );
+      
       } catch (e) {
         print('❌ Error saving category: $e');
         Get.snackbar(

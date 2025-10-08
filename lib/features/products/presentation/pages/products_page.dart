@@ -11,6 +11,7 @@ import 'package:pos/features/products/presentation/widgets/add_product_fab.dart'
 import 'package:pos/features/products/presentation/widgets/product_form_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/product_details_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/import_export_dialog.dart';
+import 'package:pos/features/products/presentation/widgets/categories_management_dialog.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -473,10 +474,8 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   }
 
   void _showCategoriesDialog() {
-    Get.snackbar(
-      'Info',
-      'Fitur kelola kategori akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
+    Get.dialog(
+      const CategoriesManagementDialog(),
     );
   }
 
