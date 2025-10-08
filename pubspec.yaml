@@ -60,6 +60,11 @@ dependencies:
   pdf: ^3.10.7
   printing: ^5.11.1
 
+  # File Operations
+  file_picker: ^6.1.1
+  csv: ^5.0.2
+  path_provider: ^2.1.1
+
   # Other
   url_launcher: ^6.2.2
   device_info_plus: ^9.1.1

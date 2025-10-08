@@ -705,8 +705,20 @@ class LocalDataSourceImpl implements LocalDataSource {
         final reorderPoint = product.attributes['reorder_point'] as int? ?? product.minStock;
         final currentStock = await getCurrentStock(product.id);
         
-        if (currentStock <= reorderPoint) {
-          lowStockProducts.add(product);
+        // Check if this is a new product (created within last 7 days)
+        final isNewProduct = DateTime.now().difference(product.createdAt).inDays < 7;
+        
+        // Only consider as low stock if:
+        // 1. Not a new product (older than 7 days), OR
+        // 2. New product but has stock movements (purchases/sales)
+        final hasMovements = await _hasStockMovements(product.id);
+        if (!isNewProduct || hasMovements) {
+          if (currentStock <= reorderPoint) {
+            lowStockProducts.add(product);
+            print('📊 Low stock: ${product.name} (current: $currentStock, reorder: $reorderPoint)');
+          }
+        } else {
+          print('📊 New product (${product.name}) - not considered low stock yet');
         }
       } catch (e) {
         print('❌ Error checking low stock for product ${product.id}: $e');
@@ -714,6 +726,19 @@ class LocalDataSourceImpl implements LocalDataSource {
     }
     
     return lowStockProducts;
+  }
+  
+  /// Check if product has any stock movements
+  Future<bool> _hasStockMovements(String productId) async {
+    final db = await _database;
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) as movement_count
+      FROM stock_movements 
+      WHERE product_id = ?
+    ''', [productId]);
+    
+    final movementCount = (result.first['movement_count'] as int?) ?? 0;
+    return movementCount > 0;
   }
 
   @override

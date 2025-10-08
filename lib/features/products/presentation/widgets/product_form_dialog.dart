@@ -6,10 +6,8 @@ import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/features/products/presentation/widgets/barcode_scanner_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/category_search_dialog.dart';
-import 'package:pos/features/products/presentation/widgets/product_search_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/unit_search_dialog.dart';
 import 'package:pos/core/controllers/unit_controller.dart';
-import 'package:pos/features/products/presentation/controllers/product_controller.dart';
 import 'package:pos/core/controllers/category_controller.dart';
 import 'package:pos/core/storage/local_datasource.dart';
 import 'package:image_picker/image_picker.dart';
@@ -58,12 +56,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   bool _hasBarcode = false;
   bool _isNewProduct = true; // true for new product, false for existing product
   List<String> _productImages = []; // List of base64 encoded images
-  List<String> _existingProductNames = []; // List of existing product names from server
   List<Category> _categories = []; // List of categories
-  String? _selectedExistingProduct; // Selected existing product for restock
-  Product? _selectedProductData; // Full product data for restock
-  int _currentStock = 0; // Current stock from server
-  final TextEditingController _newStockController = TextEditingController(); // New stock to add
   DateTime? _expiryDate; // Expiry date for expirable products
 
   final ImagePicker _imagePicker = ImagePicker();
@@ -76,7 +69,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     // _languageController = Get.find<LanguageController>();
    _setupInit();
     _initializeForm();
-    _loadExistingProductNames();
     _loadCategories();
     _loadUnits();
   }
@@ -119,35 +111,7 @@ _setupInit(){
   }
  
 }
-  /// Load existing product names from server
-  Future<void> _loadExistingProductNames() async {
-    try {
-      // Load from local database
-      final productController = Get.find<ProductController>();
-      _existingProductNames = productController.products.map((p) => p.name).toList();
-    } catch (e) {
-      print('❌ Failed to load existing product names: $e');
-      _existingProductNames = [];
-    }
-  }
 
-  /// Get product data by name (from local database)
-  Future<Product?> _getProductDataByName(String productName) async {
-    try {
-      // Load from local database
-      final productController = Get.find<ProductController>();
-      return productController.products.firstWhereOrNull((p) => p.name == productName);
-    } catch (e) {
-      print('❌ Failed to get product data: $e');
-      return null;
-    }
-  }
-
-  /// Check if product name exists in server
-  bool _isProductNameExisting(String productName) {
-    return _existingProductNames.any((name) => 
-      name.toLowerCase().contains(productName.toLowerCase()));
-  }
 
   /// Pick image from gallery or camera
   Future<void> _pickImage(ImageSource source) async {
@@ -387,139 +351,8 @@ _setupInit(){
     );
   }
 
-  /// Show product search dialog
-  void _showProductSearchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => ProductSearchDialog(
-        existingProducts: _existingProductNames,
-        selectedProduct: _selectedExistingProduct,
-        onProductSelected: (product) async {
-          setState(() {
-            _selectedExistingProduct = product;
-            _nameController.text = product;
-          });
-          
-          // Load product data and auto-fill form
-          await _loadAndFillProductData(product);
-        },
-      ),
-    );
-  }
 
-  /// Load product data and auto-fill form for restock
-  Future<void> _loadAndFillProductData(String productName) async {
-    try {
-      final productData = await _getProductDataByName(productName);
-      if (productData != null) {
-        setState(() {
-          _selectedProductData = productData;
-          
-          // Auto-fill all fields except price and stock
-          _skuController.text = productData.sku;
-          _descriptionController.text = productData.description ?? '';
-          _selectedCategoryId = productData.categoryId;
-      // Find unit by name and set ID
-      final unit = _unitController.getUnitByName(productData.unit);
-      _selectedUnitId = unit?.id;
-          _minStockController.text = productData.minStock.toString();
-          
-          // Auto-fill attributes
-          _brandController.text = productData.attributes['brand'] ?? '';
-          _variantController.text = productData.attributes['variant'] ?? '';
-          _packSizeController.text = productData.attributes['pack_size'] ?? '';
-          _reorderPointController.text = productData.attributes['reorder_point']?.toString() ?? '';
-          _reorderQtyController.text = productData.attributes['reorder_qty']?.toString() ?? '';
-          
-          // Auto-fill barcode
-          _barcodeController.text = productData.barcode ?? '';
-          _hasBarcode = productData.hasBarcode;
-          _isExpirable = productData.isExpirable;
-          _isActive = productData.isActive;
-          
-          // Load expiry date if available
-          if (productData.attributes['expiry_date'] != null) {
-            try {
-              _expiryDate = DateTime.parse(productData.attributes['expiry_date']);
-            } catch (e) {
-              print('❌ Error parsing expiry date: $e');
-              _expiryDate = null;
-            }
-          }
-          
-          // Set current stock (for display) - simulate current stock
-          _currentStock = 0; // Will be loaded from actual inventory
-          
-          // Keep price fields empty for user input
-          _priceBuyController.clear();
-          _priceSellController.clear();
-        });
-        
-        Get.snackbar(
-          'Success',
-          'Data produk berhasil dimuat. Silakan isi harga dan stok baru.',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: AppTheme.successColor,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-        );
-      }
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Gagal memuat data produk: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: AppTheme.errorColor,
-        colorText: Colors.white,
-      );
-    }
-  }
 
-  /// Build product search field for restock
-  Widget _buildProductSearchField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Nama Produk *',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: _showProductSearchDialog,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[400]!),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _selectedExistingProduct ?? 'Pilih produk yang akan di-restok',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: _selectedExistingProduct != null 
-                          ? Colors.black87 
-                          : Colors.grey[500],
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: Colors.grey[600],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   void _initializeForm() {
     if (widget.product != null) {
@@ -564,7 +397,6 @@ _setupInit(){
       
       // This is edit mode, not a new product
       _isNewProduct = false;
-      _selectedExistingProduct = product.name;
     }
   }
 
@@ -582,7 +414,6 @@ _setupInit(){
     _reorderPointController.dispose();
     _reorderQtyController.dispose();
     _barcodeController.dispose();
-    _newStockController.dispose();
     super.dispose();
   }
 
@@ -628,42 +459,33 @@ _setupInit(){
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Basic Information
+                   
+                      
+                      
+                      // Image Upload
+                      _buildSectionTitle('Foto Produk'),
+                      const SizedBox(height: 12),
+                      _buildImageUploadSection(),
+                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
+                         // Basic Information
                       _buildSectionTitle('Informasi Dasar'),
                          const SizedBox(height: 20),
-                      
-                      // Product Type Selection
-                      _buildSectionTitle('Tipe Produk'),
-                      const SizedBox(height: 12),
-                      _buildProductTypeSelection(),
-                         const SizedBox(height: 20),
-                      
-                      // Image Upload (only for new products)
-                      if (_isNewProduct) ...[
-                        _buildSectionTitle('Foto Produk'),
-                        const SizedBox(height: 12),
-                        _buildImageUploadSection(),
-                        const SizedBox(height: 20),
-                      ],
-                      const SizedBox(height: 12),
-                      
                       Row(
                         children: [
                           Expanded(
                             flex: 2,
-                            child: _isNewProduct 
-                                ? _buildTextFormField(
-                                    controller: _nameController,
-                                    label: 'Nama Produk *',
-                                    hint: 'Masukkan nama produk',
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Nama produk harus diisi';
-                                      }
-                                      return null;
-                                    },
-                                  )
-                                : _buildProductSearchField(),
+                            child: _buildTextFormField(
+                              controller: _nameController,
+                              label: 'Nama Produk *',
+                              hint: 'Masukkan nama produk',
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Nama produk harus diisi';
+                                }
+                                return null;
+                              },
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -746,95 +568,27 @@ _setupInit(){
                       ),
                       const SizedBox(height: 16),
                       
-                      Column(
-                        children: [
-                          // Current Stock Display (only for restock)
-                          if (!_isNewProduct && _selectedProductData != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.blue[200]!),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.inventory_2_rounded,
-                                    color: Colors.blue[600],
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Stok Tersedia',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.blue[800],
-                                          ),
-                                        ),
-                                        Text(
-                                          '$_currentStock ${_selectedProductData!.unit}',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.blue[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            // New Stock Input (only for restock)
-                            _buildTextFormField(
-                              controller: _newStockController,
-                              label: 'Stok Baru yang Ditambahkan *',
-                              hint: '0',
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Stok baru harus diisi';
-                                }
-                                if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                                  return 'Stok baru harus lebih dari 0';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                          
-                          _buildTextFormField(
-                            controller: _minStockController,
-                            label: 'Stok Minimum *',
-                            hint: '0',
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Stok minimum harus diisi';
-                              }
-                              if (int.tryParse(value) == null || int.parse(value) < 0) {
-                                return 'Stok minimum tidak boleh negatif';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTextFormField(
-                            controller: _reorderPointController,
-                            label: 'Reorder Point',
-                            hint: '0',
-                            keyboardType: TextInputType.number,
-                          ),
-                        ],
+                      _buildTextFormField(
+                        controller: _minStockController,
+                        label: 'Stok Minimum *',
+                        hint: '0',
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Stok minimum harus diisi';
+                          }
+                          if (int.tryParse(value) == null || int.parse(value) < 0) {
+                            return 'Stok minimum tidak boleh negatif';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextFormField(
+                        controller: _reorderPointController,
+                        label: 'Reorder Point',
+                        hint: '0',
+                        keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 20),
                       
@@ -1209,158 +963,6 @@ _setupInit(){
     );
   }
 
-  /// Build product type selection widget
-  Widget _buildProductTypeSelection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.grey[50]!,
-            Colors.white,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Tipe Produk',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Column(
-            children: [
-              _buildProductTypeOption(
-                title: 'Produk Baru',
-                subtitle: 'Belum ada di server, perlu foto',
-                value: true,
-                icon: Icons.add_circle_outline,
-              ),
-              const SizedBox(height: 12),
-              _buildProductTypeOption(
-                title: 'Restok',
-                subtitle: 'Sudah ada di server, tidak perlu foto',
-                value: false,
-                icon: Icons.refresh,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build individual product type option
-  Widget _buildProductTypeOption({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required IconData icon,
-  }) {
-    final isSelected = _isNewProduct == value;
-    
-    return Material(
-      elevation: isSelected ? 2 : 0,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _isNewProduct = value;
-          });
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isSelected 
-                ? AppTheme.primaryColor.withOpacity(0.1)
-                : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected 
-                  ? AppTheme.primaryColor.withOpacity(0.3)
-                  : Colors.grey[200]!,
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isSelected 
-                      ? AppTheme.primaryColor
-                      : Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : Colors.grey[600],
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected ? AppTheme.primaryColor : Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   /// Build image upload section
   Widget _buildImageUploadSection() {
@@ -1806,29 +1408,6 @@ _setupInit(){
   }
 
   void _submitForm() {
-    // Additional validation for restock
-    if (!_isNewProduct && _selectedExistingProduct == null) {
-      Get.snackbar(
-        'Error',
-        'Pilih produk yang akan di-restok',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: AppTheme.errorColor,
-        colorText: Colors.white,
-      );
-      return;
-    }
-    
-    // Additional validation for new stock in restock
-    if (!_isNewProduct && (_newStockController.text.isEmpty || int.tryParse(_newStockController.text) == null || int.parse(_newStockController.text) <= 0)) {
-      Get.snackbar(
-        'Error',
-        'Stok baru harus diisi dan lebih dari 0',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: AppTheme.errorColor,
-        colorText: Colors.white,
-      );
-      return;
-    }
     
     // Additional validation for expiry date
     if (_isExpirable && _expiryDate == null) {

@@ -51,14 +51,16 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
                   size: 24,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Import / Export Data',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                Expanded(
+                  child: Text(
+                    'Import / Export Data',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
                 IconButton(
                   onPressed: () => Get.back(),
                   icon: const Icon(Icons.close),
@@ -123,11 +125,14 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
                   children: [
                     Icon(Icons.info, color: Colors.blue[600], size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'Petunjuk Import CSV',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[600],
+                    Expanded(
+                      child: Text(
+                        'Petunjuk Import CSV',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -195,11 +200,14 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
                   children: [
                     Icon(Icons.info, color: Colors.green[600], size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'Export Data Produk',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green[600],
+                    Expanded(
+                      child: Text(
+                        'Export Data Produk',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
