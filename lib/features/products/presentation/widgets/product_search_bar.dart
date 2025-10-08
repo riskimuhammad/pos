@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:pos/core/theme/app_theme.dart';
+import 'package:pos/features/products/presentation/widgets/barcode_scanner_dialog.dart';
 
 class ProductSearchBar extends StatefulWidget {
   final Function(String) onSearchChanged;
   final VoidCallback onSearchCleared;
+  final Function(String)? onBarcodeScanned;
 
   const ProductSearchBar({
     super.key,
     required this.onSearchChanged,
     required this.onSearchCleared,
+    this.onBarcodeScanned,
   });
 
   @override
@@ -93,12 +96,20 @@ class _ProductSearchBarState extends State<ProductSearchBar> {
   }
 
   void _scanBarcode() {
-    // TODO: Implement barcode scanning
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Fitur scan barcode akan segera tersedia'),
-        backgroundColor: AppTheme.primaryColor,
-      ),
-    );
+    if (widget.onBarcodeScanned != null) {
+      showDialog(
+        context: context,
+        builder: (context) => BarcodeScannerDialog(
+          onBarcodeScanned: widget.onBarcodeScanned!,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Barcode scanner tidak tersedia'),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+      );
+    }
   }
 }

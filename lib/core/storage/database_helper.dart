@@ -333,6 +333,20 @@ class DatabaseHelper {
       )
     ''');
 
+    // Pending sync queue table
+    await db.execute('''
+      CREATE TABLE pending_sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        operation_type TEXT NOT NULL,
+        product_data TEXT,
+        product_id TEXT,
+        created_at INTEGER NOT NULL,
+        retry_count INTEGER DEFAULT 0,
+        last_retry_at INTEGER,
+        error_message TEXT
+      )
+    ''');
+
     // Sync queue table (updated schema)
     await db.execute('''
       CREATE TABLE sync_queue (
@@ -553,6 +567,27 @@ class DatabaseHelper {
         ''');
       }
     }
+    // Migration to version 5: add pending_sync_queue table
+    if (oldVersion < 5) {
+      try {
+        await db.execute('''
+          CREATE TABLE pending_sync_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            operation_type TEXT NOT NULL,
+            product_data TEXT,
+            product_id TEXT,
+            created_at INTEGER NOT NULL,
+            retry_count INTEGER DEFAULT 0,
+            last_retry_at INTEGER,
+            error_message TEXT
+          )
+        ''');
+        print('✅ Created pending_sync_queue table');
+      } catch (e) {
+        print('⚠️ Failed to create pending_sync_queue table: $e');
+      }
+    }
+
     // Migration to version 4: add product details, stock_movements.cost_price, regional_price
     if (oldVersion < 4) {
       // Products new columns

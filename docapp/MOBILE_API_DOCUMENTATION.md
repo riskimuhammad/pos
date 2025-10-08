@@ -44,7 +44,421 @@ Semua API responses mengikuti format standar:
 
 ---
 
-## 1. Sales Prediction API
+## 1. Product Management API
+
+### 1.1 Create Product
+
+#### Endpoint
+```http
+POST /api/products
+```
+
+#### Request Body
+```json
+{
+  "tenant_id": "tenant_123",
+  "sku": "IMG001",
+  "name": "Indomie Goreng Rendang",
+  "category_id": "cat_1",
+  "description": "Mie instan goreng dengan bumbu rendang yang autentik",
+  "unit": "bungkus",
+  "price_buy": 2500.0,
+  "price_sell": 3500.0,
+  "weight": 0.0,
+  "has_barcode": true,
+  "barcode": "1234567890123",
+  "is_expirable": false,
+  "is_active": true,
+  "min_stock": 10,
+  "brand": "Indomie",
+  "variant": "Goreng Rendang",
+  "pack_size": "75g",
+  "uom": "bungkus",
+  "reorder_point": 5,
+  "reorder_qty": 50,
+  "photos": [
+    "https://images.unsplash.com/photo-1569718212165-3a8278d5f624"
+  ],
+  "attributes": {
+    "flavor": "rendang",
+    "spice_level": "medium",
+    "cooking_time": "3 minutes"
+  }
+}
+```
+
+#### Request Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenant_id` | string | Yes | ID tenant pemilik produk |
+| `sku` | string | Yes | Stock Keeping Unit (kode unik produk) |
+| `name` | string | Yes | Nama produk |
+| `category_id` | string | Yes | ID kategori produk |
+| `description` | string | No | Deskripsi produk |
+| `unit` | string | No | Satuan produk (default: "pcs") |
+| `price_buy` | float | Yes | Harga beli produk |
+| `price_sell` | float | Yes | Harga jual produk |
+| `weight` | float | No | Berat produk dalam gram |
+| `has_barcode` | boolean | No | Apakah produk memiliki barcode |
+| `barcode` | string | No | Kode barcode produk |
+| `is_expirable` | boolean | No | Apakah produk bisa expired |
+| `is_active` | boolean | No | Status aktif produk |
+| `min_stock` | integer | No | Stok minimum |
+| `brand` | string | No | Merek produk |
+| `variant` | string | No | Varian produk |
+| `pack_size` | string | No | Ukuran kemasan |
+| `uom` | string | No | Unit of Measure |
+| `reorder_point` | integer | No | Titik reorder stok |
+| `reorder_qty` | integer | No | Jumlah reorder |
+| `photos` | array | No | Array URL foto produk |
+| `attributes` | object | No | Atribut tambahan produk |
+
+#### Request Example
+```http
+POST /api/products
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "tenant_id": "tenant_123",
+  "sku": "IMG001",
+  "name": "Indomie Goreng Rendang",
+  "category_id": "cat_1",
+  "description": "Mie instan goreng dengan bumbu rendang yang autentik",
+  "unit": "bungkus",
+  "price_buy": 2500.0,
+  "price_sell": 3500.0,
+  "has_barcode": true,
+  "barcode": "1234567890123",
+  "is_active": true,
+  "min_stock": 10,
+  "brand": "Indomie",
+  "variant": "Goreng Rendang",
+  "pack_size": "75g",
+  "uom": "bungkus",
+  "reorder_point": 5,
+  "reorder_qty": 50
+}
+```
+
+#### Response Data Contract
+```json
+{
+  "id": "prod_001",
+  "tenant_id": "tenant_123",
+  "sku": "IMG001",
+  "name": "Indomie Goreng Rendang",
+  "category_id": "cat_1",
+  "description": "Mie instan goreng dengan bumbu rendang yang autentik",
+  "unit": "bungkus",
+  "price_buy": 2500.0,
+  "price_sell": 3500.0,
+  "weight": 0.0,
+  "has_barcode": true,
+  "barcode": "1234567890123",
+  "is_expirable": false,
+  "is_active": true,
+  "min_stock": 10,
+  "brand": "Indomie",
+  "variant": "Goreng Rendang",
+  "pack_size": "75g",
+  "uom": "bungkus",
+  "reorder_point": 5,
+  "reorder_qty": 50,
+  "photos": [
+    "https://images.unsplash.com/photo-1569718212165-3a8278d5f624"
+  ],
+  "attributes": {
+    "flavor": "rendang",
+    "spice_level": "medium",
+    "cooking_time": "3 minutes"
+  },
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z",
+  "deleted_at": null,
+  "sync_status": "synced",
+  "last_synced_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### 1.2 Update Product
+
+#### Endpoint
+```http
+PUT /api/products/{productId}
+```
+
+#### Request Body
+```json
+{
+  "sku": "IMG001",
+  "name": "Indomie Goreng Rendang Updated",
+  "category_id": "cat_1",
+  "description": "Mie instan goreng dengan bumbu rendang yang autentik - Updated",
+  "unit": "bungkus",
+  "price_buy": 2600.0,
+  "price_sell": 3600.0,
+  "weight": 0.0,
+  "has_barcode": true,
+  "barcode": "1234567890123",
+  "is_expirable": false,
+  "is_active": true,
+  "min_stock": 15,
+  "brand": "Indomie",
+  "variant": "Goreng Rendang",
+  "pack_size": "75g",
+  "uom": "bungkus",
+  "reorder_point": 8,
+  "reorder_qty": 60,
+  "photos": [
+    "https://images.unsplash.com/photo-1569718212165-3a8278d5f624"
+  ],
+  "attributes": {
+    "flavor": "rendang",
+    "spice_level": "medium",
+    "cooking_time": "3 minutes"
+  }
+}
+```
+
+#### Request Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `productId` | string | Yes | ID produk yang akan diupdate (path parameter) |
+| `sku` | string | No | Stock Keeping Unit (kode unik produk) |
+| `name` | string | No | Nama produk |
+| `category_id` | string | No | ID kategori produk |
+| `description` | string | No | Deskripsi produk |
+| `unit` | string | No | Satuan produk |
+| `price_buy` | float | No | Harga beli produk |
+| `price_sell` | float | No | Harga jual produk |
+| `weight` | float | No | Berat produk dalam gram |
+| `has_barcode` | boolean | No | Apakah produk memiliki barcode |
+| `barcode` | string | No | Kode barcode produk |
+| `is_expirable` | boolean | No | Apakah produk bisa expired |
+| `is_active` | boolean | No | Status aktif produk |
+| `min_stock` | integer | No | Stok minimum |
+| `brand` | string | No | Merek produk |
+| `variant` | string | No | Varian produk |
+| `pack_size` | string | No | Ukuran kemasan |
+| `uom` | string | No | Unit of Measure |
+| `reorder_point` | integer | No | Titik reorder stok |
+| `reorder_qty` | integer | No | Jumlah reorder |
+| `photos` | array | No | Array URL foto produk |
+| `attributes` | object | No | Atribut tambahan produk |
+
+#### Request Example
+```http
+PUT /api/products/prod_001
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "name": "Indomie Goreng Rendang Updated",
+  "price_buy": 2600.0,
+  "price_sell": 3600.0,
+  "min_stock": 15,
+  "reorder_point": 8,
+  "reorder_qty": 60
+}
+```
+
+#### Response Data Contract
+```json
+{
+  "id": "prod_001",
+  "tenant_id": "tenant_123",
+  "sku": "IMG001",
+  "name": "Indomie Goreng Rendang Updated",
+  "category_id": "cat_1",
+  "description": "Mie instan goreng dengan bumbu rendang yang autentik - Updated",
+  "unit": "bungkus",
+  "price_buy": 2600.0,
+  "price_sell": 3600.0,
+  "weight": 0.0,
+  "has_barcode": true,
+  "barcode": "1234567890123",
+  "is_expirable": false,
+  "is_active": true,
+  "min_stock": 15,
+  "brand": "Indomie",
+  "variant": "Goreng Rendang",
+  "pack_size": "75g",
+  "uom": "bungkus",
+  "reorder_point": 8,
+  "reorder_qty": 60,
+  "photos": [
+    "https://images.unsplash.com/photo-1569718212165-3a8278d5f624"
+  ],
+  "attributes": {
+    "flavor": "rendang",
+    "spice_level": "medium",
+    "cooking_time": "3 minutes"
+  },
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T11:45:00Z",
+  "deleted_at": null,
+  "sync_status": "synced",
+  "last_synced_at": "2024-01-15T11:45:00Z"
+}
+```
+
+### 1.3 Get Products
+
+#### Endpoint
+```http
+GET /api/products?tenant_id={tenantId}&category_id={categoryId}&search={query}&page={page}&limit={limit}
+```
+
+#### Request Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenant_id` | string | Yes | ID tenant |
+| `category_id` | string | No | Filter by category ID |
+| `search` | string | No | Search query for name/SKU |
+| `page` | integer | No | Page number (default: 1) |
+| `limit` | integer | No | Items per page (default: 20) |
+
+#### Request Example
+```http
+GET /api/products?tenant_id=tenant_123&search=indomie&page=1&limit=20
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### Response Data Contract
+```json
+{
+  "products": [
+    {
+      "id": "prod_001",
+      "tenant_id": "tenant_123",
+      "sku": "IMG001",
+      "name": "Indomie Goreng Rendang",
+      "category_id": "cat_1",
+      "description": "Mie instan goreng dengan bumbu rendang yang autentik",
+      "unit": "bungkus",
+      "price_buy": 2500.0,
+      "price_sell": 3500.0,
+      "weight": 0.0,
+      "has_barcode": true,
+      "barcode": "1234567890123",
+      "is_expirable": false,
+      "is_active": true,
+      "min_stock": 10,
+      "brand": "Indomie",
+      "variant": "Goreng Rendang",
+      "pack_size": "75g",
+      "uom": "bungkus",
+      "reorder_point": 5,
+      "reorder_qty": 50,
+      "photos": [
+        "https://images.unsplash.com/photo-1569718212165-3a8278d5f624"
+      ],
+      "attributes": {
+        "flavor": "rendang",
+        "spice_level": "medium",
+        "cooking_time": "3 minutes"
+      },
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z",
+      "deleted_at": null,
+      "sync_status": "synced",
+      "last_synced_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 5,
+    "total_items": 100,
+    "items_per_page": 20,
+    "has_next": true,
+    "has_prev": false
+  }
+}
+```
+
+### 1.4 Get Product by ID
+
+#### Endpoint
+```http
+GET /api/products/{productId}
+```
+
+#### Request Example
+```http
+GET /api/products/prod_001
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### Response Data Contract
+```json
+{
+  "id": "prod_001",
+  "tenant_id": "tenant_123",
+  "sku": "IMG001",
+  "name": "Indomie Goreng Rendang",
+  "category_id": "cat_1",
+  "description": "Mie instan goreng dengan bumbu rendang yang autentik",
+  "unit": "bungkus",
+  "price_buy": 2500.0,
+  "price_sell": 3500.0,
+  "weight": 0.0,
+  "has_barcode": true,
+  "barcode": "1234567890123",
+  "is_expirable": false,
+  "is_active": true,
+  "min_stock": 10,
+  "brand": "Indomie",
+  "variant": "Goreng Rendang",
+  "pack_size": "75g",
+  "uom": "bungkus",
+  "reorder_point": 5,
+  "reorder_qty": 50,
+  "photos": [
+    "https://images.unsplash.com/photo-1569718212165-3a8278d5f624"
+  ],
+  "attributes": {
+    "flavor": "rendang",
+    "spice_level": "medium",
+    "cooking_time": "3 minutes"
+  },
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z",
+  "deleted_at": null,
+  "sync_status": "synced",
+  "last_synced_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### 1.5 Delete Product
+
+#### Endpoint
+```http
+DELETE /api/products/{productId}
+```
+
+#### Request Example
+```http
+DELETE /api/products/prod_001
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### Response Data Contract
+```json
+{
+  "success": true,
+  "message": "Product deleted successfully",
+  "data": {
+    "id": "prod_001",
+    "deleted_at": "2024-01-15T12:00:00Z"
+  },
+  "timestamp": "2024-01-15T12:00:00Z"
+}
+```
+
+---
+
+## 2. Sales Prediction API
 
 ### Endpoint
 ```http
@@ -795,6 +1209,16 @@ curl -X GET "https://api.pos-umkm.com/v1/api/ai/daily-insight" \
 ---
 
 ## Changelog
+
+### Version 1.1.0 (2024-01-15)
+- Added Product Management API endpoints
+- POST /api/products - Create product
+- PUT /api/products/{id} - Update product
+- GET /api/products - Get products with pagination
+- GET /api/products/{id} - Get product by ID
+- DELETE /api/products/{id} - Delete product
+- Complete product data contracts with all fields
+- Support for barcode, photos, attributes, and inventory management
 
 ### Version 1.0.0 (2024-01-15)
 - Initial API release

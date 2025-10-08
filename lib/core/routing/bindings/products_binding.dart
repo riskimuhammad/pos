@@ -7,11 +7,21 @@ import 'package:pos/features/products/data/repositories/product_repository_impl.
 import 'package:pos/core/sync/product_sync_service.dart';
 import 'package:pos/core/data/database_seeder.dart';
 import 'package:pos/core/storage/database_helper.dart';
+import 'package:pos/core/api/product_api_service.dart';
+
+import '../../network/network_info.dart';
+import '../../storage/local_datasource.dart';
 
 class ProductsBinding extends Bindings {
   @override
   void dependencies() {
     // Ensure dependencies are available, create if not found
+    Get.lazyPut<DatabaseHelper>(() => DatabaseHelper());
+    Get.lazyPut<LocalDataSource>(() => LocalDataSourceImpl(Get.find<DatabaseHelper>()));
+    Get.lazyPut<ProductRepository>(() => ProductRepositoryImpl(
+      networkInfo: Get.find<NetworkInfo>(),
+      localDataSource: Get.find<LocalDataSource>(),
+    ));
     if (!Get.isRegistered<GetProducts>()) {
       Get.lazyPut<GetProducts>(() => GetProducts(Get.find<ProductRepository>()));
     }
@@ -21,13 +31,14 @@ class ProductsBinding extends Bindings {
     if (!Get.isRegistered<SearchProducts>()) {
       Get.lazyPut<SearchProducts>(() => SearchProducts(Get.find<ProductRepository>()));
     }
-    if (!Get.isRegistered<ProductSyncService>()) {
-      Get.lazyPut<ProductSyncService>(() => ProductSyncService(
-        databaseHelper: Get.find<DatabaseHelper>(),
-        databaseSeeder: Get.find<DatabaseSeeder>(),
-        apiService: null,
-      ));
-    }
+            if (!Get.isRegistered<ProductSyncService>()) {
+              Get.lazyPut<ProductSyncService>(() => ProductSyncService(
+                databaseHelper: Get.find<DatabaseHelper>(),
+                databaseSeeder: Get.find<DatabaseSeeder>(),
+                networkInfo: Get.find<NetworkInfo>(),
+                productApiService: Get.isRegistered<ProductApiService>() ? Get.find<ProductApiService>() : null,
+              ));
+            }
     if (!Get.isRegistered<DatabaseSeeder>()) {
       Get.lazyPut<DatabaseSeeder>(() => DatabaseSeeder(Get.find<DatabaseHelper>()));
     }

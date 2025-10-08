@@ -8,6 +8,9 @@ import 'package:pos/features/products/presentation/widgets/product_card.dart';
 import 'package:pos/features/products/presentation/widgets/product_search_bar.dart';
 import 'package:pos/features/products/presentation/widgets/category_filter.dart';
 import 'package:pos/features/products/presentation/widgets/add_product_fab.dart';
+import 'package:pos/features/products/presentation/widgets/product_form_dialog.dart';
+import 'package:pos/features/products/presentation/widgets/product_details_dialog.dart';
+import 'package:pos/features/products/presentation/widgets/import_export_dialog.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -104,6 +107,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                 ProductSearchBar(
                   onSearchChanged: _controller.searchProducts,
                   onSearchCleared: _controller.clearSearch,
+                  onBarcodeScanned: _handleBarcodeScanned,
                 ),
                 SizedBox(height: 12),
                 CategoryFilter(
@@ -334,29 +338,29 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   }
 
   void _showAddProductDialog() {
-    // TODO: Implement add product dialog
-    Get.snackbar(
-      'Info',
-      'Fitur tambah produk akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
+    Get.dialog(
+      ProductFormDialog(
+        onSubmit: (product) {
+          _controller.createNewProduct(product);
+        },
+      ),
     );
   }
 
   void _showEditProductDialog(Product product) {
-    // TODO: Implement edit product dialog
-    Get.snackbar(
-      'Info',
-      'Fitur edit produk akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
+    Get.dialog(
+      ProductFormDialog(
+        product: product,
+        onSubmit: (updatedProduct) {
+          _controller.updateProduct(updatedProduct);
+        },
+      ),
     );
   }
 
   void _showProductDetails(Product product) {
-    // TODO: Implement product details dialog
-    Get.snackbar(
-      'Info',
-      'Detail produk: ${product.name}',
-      snackPosition: SnackPosition.TOP,
+    Get.dialog(
+      ProductDetailsDialog(product: product),
     );
   }
 
@@ -386,18 +390,31 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   }
 
   void _showImportDialog() {
-    Get.snackbar(
-      'Info',
-      'Fitur import CSV akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
+    Get.dialog(
+      ImportExportDialog(
+        products: _controller.products,
+        onImportProducts: (importedProducts) {
+          // TODO: Handle imported products
+          Get.snackbar(
+            'Import Berhasil',
+            '${importedProducts.length} produk berhasil diimport',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: AppTheme.successColor,
+            colorText: Colors.white,
+          );
+        },
+      ),
     );
   }
 
   void _showExportDialog() {
-    Get.snackbar(
-      'Info',
-      'Fitur export data akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
+    Get.dialog(
+      ImportExportDialog(
+        products: _controller.products,
+        onImportProducts: (importedProducts) {
+          // Not used in export mode
+        },
+      ),
     );
   }
 
@@ -406,6 +423,19 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
       'Info',
       'Fitur kelola kategori akan segera tersedia',
       snackPosition: SnackPosition.TOP,
+    );
+  }
+
+  void _handleBarcodeScanned(String barcode) {
+    // Search for product with this barcode
+    _controller.searchByBarcode(barcode);
+    
+    Get.snackbar(
+      'Barcode Scanned',
+      'Mencari produk dengan barcode: $barcode',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: AppTheme.primaryColor,
+      colorText: Colors.white,
     );
   }
 }

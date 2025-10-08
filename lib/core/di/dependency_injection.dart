@@ -32,6 +32,8 @@ import 'package:pos/core/ai/warung_assistant.dart';
 import 'package:pos/core/data/database_seeder.dart';
 import 'package:pos/core/sync/product_sync_service.dart';
 import 'package:pos/core/ai/ai_api_service.dart';
+import 'package:pos/core/api/product_api_service.dart';
+import 'package:pos/core/services/permission_service.dart';
 
 // Global feature toggles (switch to true when backend is ready)
 const bool kEnableRemoteApi = false; // affects auth repository data source
@@ -53,6 +55,9 @@ class DependencyInjection {
     
     // Storage
     Get.lazyPut<GetStorage>(() => GetStorage());
+    
+    // Services
+    Get.lazyPut<PermissionService>(() => PermissionService());
 
     // Auth dependencies
     Get.lazyPut<AuthLocalDataSource>(() => AuthLocalDataSourceImpl(Get.find<GetStorage>()));
@@ -110,9 +115,10 @@ class DependencyInjection {
     // AI services
     Get.lazyPut<AIDataService>(() => AIDataService(database: Get.find<Database>()));
     
-    // AI API Service (conditional registration)
+    // API Services (conditional registration)
     if (kEnableRemoteApi) {
       Get.lazyPut<AIApiService>(() => AIApiService(dio: Get.find<Dio>()));
+      Get.lazyPut<ProductApiService>(() => ProductApiService(dio: Get.find<Dio>()));
     }
     
     // AI Warung Assistant services
@@ -136,7 +142,8 @@ class DependencyInjection {
         Get.lazyPut<ProductSyncService>(() => ProductSyncService(
           databaseHelper: Get.find<DatabaseHelper>(),
           databaseSeeder: Get.find<DatabaseSeeder>(),
-          apiService: null, // Will be set when API is ready
+          networkInfo: Get.find<NetworkInfo>(),
+          productApiService: kEnableRemoteApi ? Get.find<ProductApiService>() : null,
         ));
 
     // Language controller

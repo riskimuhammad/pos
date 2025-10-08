@@ -85,6 +85,53 @@ class ProductController extends GetxController {
     }
   }
 
+  Future<void> updateProduct(Product product) async {
+    try {
+      isCreating.value = true;
+      errorMessage.value = '';
+
+      final result = await createProduct(product); // Using createProduct for update (replace)
+      result.fold(
+        (failure) => _handleFailure(failure),
+        (updatedProduct) {
+          // Find and replace the product in the list
+          final index = products.indexWhere((p) => p.id == product.id);
+          if (index != -1) {
+            products[index] = updatedProduct;
+            _applyFilters();
+          }
+          
+          // Sync to server if enabled
+          productSyncService.updateProductOnServer(updatedProduct);
+          
+          Get.snackbar('Success', 'Product updated successfully');
+        },
+      );
+    } catch (e) {
+      errorMessage.value = 'Failed to update product: $e';
+    } finally {
+      isCreating.value = false;
+    }
+  }
+
+
+  Future<void> searchByBarcode(String barcode) async {
+    try {
+      searchQuery.value = barcode;
+      errorMessage.value = '';
+
+      final result = await searchProducts(barcode);
+      result.fold(
+        (failure) => _handleFailure(failure),
+        (searchResults) {
+          filteredProducts.value = searchResults;
+        },
+      );
+    } catch (e) {
+      errorMessage.value = 'Failed to search by barcode: $e';
+    }
+  }
+
   Future<void> performSearch(String query) async {
     try {
       searchQuery.value = query;
