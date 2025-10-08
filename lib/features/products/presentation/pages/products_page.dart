@@ -414,15 +414,48 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
     Get.dialog(
       ImportExportDialog(
         products: _controller.products,
-        onImportProducts: (importedProducts) {
-          // Handle imported products - will be implemented when CSV import is ready
-          Get.snackbar(
-            'Import Berhasil',
-            '${importedProducts.length} produk berhasil diimport',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: AppTheme.successColor,
-            colorText: Colors.white,
-          );
+        onImportProducts: (importedProducts) async {
+          try {
+            // Show loading
+            Get.dialog(
+              const Center(
+                child: CircularProgressIndicator(),
+              ),
+              barrierDismissible: false,
+            );
+            
+            // Import products using ProductController
+            for (final product in importedProducts) {
+              await _controller.createNewProduct(product);
+            }
+            
+            // Close loading dialog
+            Get.back();
+            
+            // Show success message
+            Get.snackbar(
+              'Import Berhasil',
+              '${importedProducts.length} produk berhasil diimport',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: AppTheme.successColor,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 3),
+            );
+            
+          } catch (e) {
+            // Close loading dialog if still open
+            if (Get.isDialogOpen == true) {
+              Get.back();
+            }
+            
+            Get.snackbar(
+              'Error',
+              'Gagal mengimport produk: $e',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: AppTheme.errorColor,
+              colorText: Colors.white,
+            );
+          }
         },
       ),
     );

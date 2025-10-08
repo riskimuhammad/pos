@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
+import 'package:pos/core/services/csv_service.dart';
+import 'package:pos/features/products/presentation/controllers/product_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 
 class ImportExportDialog extends StatefulWidget {
@@ -19,6 +21,7 @@ class ImportExportDialog extends StatefulWidget {
 
 class _ImportExportDialogState extends State<ImportExportDialog> with TickerProviderStateMixin {
   late TabController _tabController;
+  final CsvService _csvService = CsvService();
 
   @override
   void initState() {
@@ -315,7 +318,12 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
             '• brand (Brand)\n'
             '• variant (Variant)\n'
             '• pack_size (Ukuran Kemasan)\n'
-            '• barcode (Barcode)',
+            '• barcode (Barcode)\n'
+            '• reorder_point (Titik Pemesanan Ulang)\n'
+            '• reorder_qty (Jumlah Pemesanan Ulang)\n'
+            '• is_active (Aktif: Yes/No atau Iya/Tidak)\n'
+            '• is_expirable (Bisa Kadaluarsa: Yes/No atau Iya/Tidak)\n'
+            '• has_barcode (Ada Barcode: Yes/No atau Iya/Tidak)',
             style: TextStyle(
               color: Colors.grey[700],
               fontSize: 14,
@@ -327,33 +335,75 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
   }
 
   void _downloadTemplate() {
-    Get.snackbar(
-      'Download Template',
-      'Template CSV berhasil didownload',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: AppTheme.primaryColor,
-      colorText: Colors.white,
-    );
+    _csvService.downloadTemplate();
   }
 
-  void _uploadCSV() {
-    Get.snackbar(
-      'Upload CSV',
-      'Fitur upload CSV akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: AppTheme.warningColor,
-      colorText: Colors.white,
-    );
+  void _uploadCSV() async {
+    try {
+      // Show loading
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(),
+        ),
+        barrierDismissible: false,
+      );
+      
+      // Pick and parse CSV
+      final csvData = await _csvService.pickAndParseCSV();
+      
+      // Close loading dialog
+      Get.back();
+      
+      if (csvData != null && csvData.isNotEmpty) {
+        // Convert CSV data to Product objects
+        final products = _csvService.csvDataToProducts(csvData, 'default-tenant-id');
+        
+        if (products.isNotEmpty) {
+          // Show confirmation dialog
+          final confirmed = await Get.dialog<bool>(
+            AlertDialog(
+              title: const Text('Konfirmasi Import'),
+              content: Text('Apakah Anda yakin ingin mengimport ${products.length} produk?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(result: false),
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: () => Get.back(result: true),
+                  child: const Text('Import'),
+                ),
+              ],
+            ),
+          );
+          
+          if (confirmed == true) {
+            // Import products
+            widget.onImportProducts(products);
+            Get.back(); // Close import/export dialog
+          }
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+      
+      Get.snackbar(
+        'Error',
+        'Gagal mengupload CSV: $e',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppTheme.errorColor,
+        colorText: Colors.white,
+      );
+    }
   }
 
   void _exportProducts(List<Product> products) {
-    Get.snackbar(
-      'Export Berhasil',
-      '${products.length} produk berhasil diekspor ke CSV',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: AppTheme.successColor,
-      colorText: Colors.white,
-    );
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final filename = 'products_export_$timestamp.csv';
+    _csvService.exportProductsToCSV(products, filename);
   }
 
   void _exportActiveProducts() {
@@ -361,8 +411,50 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
     _exportProducts(activeProducts);
   }
 
-  void _exportLowStockProducts() {
-    final lowStockProducts = widget.products.where((p) => p.minStock <= 5).toList();
-    _exportProducts(lowStockProducts);
+  void _exportLowStockProducts() async {
+    try {
+      // Show loading
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(),
+        ),
+        barrierDismissible: false,
+      );
+      
+      // Get low stock products using the proper method from ProductController
+      // We need to access the controller to get real low stock data
+      final productController = Get.find<ProductController>();
+      final lowStockProducts = await productController.getLowStockProducts();
+      
+      // Close loading dialog
+      Get.back();
+      
+      if (lowStockProducts.isNotEmpty) {
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final filename = 'low_stock_products_$timestamp.csv';
+        _csvService.exportProductsToCSV(lowStockProducts, filename);
+      } else {
+        Get.snackbar(
+          'Info',
+          'Tidak ada produk dengan stok rendah',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: AppTheme.warningColor,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+      
+      Get.snackbar(
+        'Error',
+        'Gagal mengekspor produk stok rendah: $e',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppTheme.errorColor,
+        colorText: Colors.white,
+      );
+    }
   }
 }
