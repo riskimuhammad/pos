@@ -4,6 +4,7 @@ import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/core/services/csv_service.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ImportExportDialog extends StatefulWidget {
   final List<Product> products;
@@ -56,7 +57,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Import / Export Data',
+                    AppLocalizations.of(context)!.importExport,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.primaryColor,
@@ -84,9 +85,9 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
                 unselectedLabelColor: Colors.grey[600],
                 indicatorColor: AppTheme.primaryColor,
                 indicatorSize: TabBarIndicatorSize.tab,
-                tabs: const [
-                  Tab(text: 'Import CSV'),
-                  Tab(text: 'Export CSV'),
+                tabs: [
+                  Tab(text: AppLocalizations.of(context)!.importCsv),
+                  Tab(text: AppLocalizations.of(context)!.exportCsv),
                 ],
               ),
             ),
@@ -159,7 +160,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
           // Template Download
           _buildActionCard(
             icon: Icons.download,
-            title: 'Download Template CSV',
+            title: AppLocalizations.of(context)!.downloadTemplate,
             subtitle: 'Download template untuk import produk',
             onTap: _downloadTemplate,
             color: AppTheme.primaryColor,
@@ -169,7 +170,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
           // File Upload
           _buildActionCard(
             icon: Icons.upload_file,
-            title: 'Upload File CSV',
+            title: AppLocalizations.of(context)!.uploadCsv,
             subtitle: 'Pilih file CSV yang akan diimport',
             onTap: _uploadCSV,
             color: AppTheme.successColor,
@@ -232,7 +233,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
           // Export Options
           _buildActionCard(
             icon: Icons.file_download,
-            title: 'Export Semua Produk',
+            title: AppLocalizations.of(context)!.exportAllProducts,
             subtitle: 'Export semua ${widget.products.length} produk',
             onTap: () => _exportProducts(widget.products),
             color: AppTheme.successColor,
@@ -241,7 +242,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
           
           _buildActionCard(
             icon: Icons.filter_list,
-            title: 'Export Produk Aktif',
+            title: AppLocalizations.of(context)!.exportActiveProducts,
             subtitle: 'Export hanya produk yang aktif',
             onTap: () => _exportActiveProducts(),
             color: AppTheme.primaryColor,
@@ -250,7 +251,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
           
           _buildActionCard(
             icon: Icons.inventory,
-            title: 'Export Stok Rendah',
+            title: AppLocalizations.of(context)!.exportLowStockProducts,
             subtitle: 'Export produk dengan stok rendah',
             onTap: () => _exportLowStockProducts(),
             color: AppTheme.warningColor,
@@ -335,7 +336,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
   }
 
   void _downloadTemplate() {
-    _csvService.downloadTemplate();
+    _csvService.downloadTemplate(context);
   }
 
   void _uploadCSV() async {
@@ -349,7 +350,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
       );
       
       // Pick and parse CSV
-      final csvData = await _csvService.pickAndParseCSV();
+      final csvData = await _csvService.pickAndParseCSV(context);
       
       // Close loading dialog
       Get.back();
@@ -403,7 +404,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
   void _exportProducts(List<Product> products) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final filename = 'products_export_$timestamp.csv';
-    _csvService.exportProductsToCSV(products, filename);
+    _csvService.exportProductsToCSV(products, filename, context);
   }
 
   void _exportActiveProducts() {
@@ -432,7 +433,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
       if (lowStockProducts.isNotEmpty) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final filename = 'low_stock_products_$timestamp.csv';
-        _csvService.exportProductsToCSV(lowStockProducts, filename);
+        _csvService.exportProductsToCSV(lowStockProducts, filename, context);
       } else {
         Get.snackbar(
           'Info',

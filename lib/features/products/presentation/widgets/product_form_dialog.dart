@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
 // import 'package:pos/core/localization/language_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:pos/features/products/presentation/widgets/barcode_scanner_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/category_search_dialog.dart';
 import 'package:pos/features/products/presentation/widgets/unit_search_dialog.dart';
@@ -436,7 +437,7 @@ _setupInit(){
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  isEdit ? 'Edit Produk' : 'Tambah Produk',
+                  isEdit ? AppLocalizations.of(context)!.editProduct : AppLocalizations.of(context)!.newProduct,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryColor,
@@ -507,7 +508,7 @@ _setupInit(){
                       
                       _buildTextFormField(
                         controller: _descriptionController,
-                        label: 'Deskripsi',
+                        label: AppLocalizations.of(context)!.productDescription,
                         hint: 'Deskripsi produk (opsional)',
                         maxLines: 3,
                       ),
@@ -600,13 +601,13 @@ _setupInit(){
                         children: [
                           _buildTextFormField(
                             controller: _brandController,
-                            label: 'Brand',
+                            label: AppLocalizations.of(context)!.productBrand,
                             hint: 'Nama brand',
                           ),
                           const SizedBox(height: 16),
                           _buildTextFormField(
                             controller: _variantController,
-                            label: 'Variant',
+                            label: AppLocalizations.of(context)!.productVariant,
                             hint: 'Variant produk',
                           ),
                         ],
@@ -617,7 +618,7 @@ _setupInit(){
                         children: [
                           _buildTextFormField(
                             controller: _packSizeController,
-                            label: 'Ukuran Kemasan',
+                            label: AppLocalizations.of(context)!.packSize,
                             hint: 'Contoh: 500ml, 1kg',
                           ),
                           const SizedBox(height: 16),
@@ -632,7 +633,7 @@ _setupInit(){
                       const SizedBox(height: 20),
                       
                       // Barcode
-                      _buildSectionTitle('Barcode'),
+                      _buildSectionTitle(AppLocalizations.of(context)!.productBarcode),
                       const SizedBox(height: 12),
                       
                       Column(
@@ -720,7 +721,7 @@ _setupInit(){
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.grey[400]!),
                     ),
-                    child: const Text('Batal'),
+                    child: Text(AppLocalizations.of(context)!.cancel),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -732,7 +733,7 @@ _setupInit(){
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: Text(
-                      isEdit ? 'Update' : 'Simpan',
+                      isEdit ? AppLocalizations.of(context)!.update : AppLocalizations.of(context)!.save,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -909,7 +910,7 @@ _setupInit(){
     return TextFormField(
       controller: _barcodeController,
       decoration: InputDecoration(
-        labelText: 'Barcode',
+        labelText: AppLocalizations.of(context)!.productBarcode,
         hintText: 'Kode barcode produk',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

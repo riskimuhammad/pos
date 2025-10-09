@@ -7,11 +7,12 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/shared/models/entities/entities.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class CsvService {
   
   /// Download CSV template for product import
-  Future<void> downloadTemplate() async {
+  Future<void> downloadTemplate(BuildContext context) async {
     try {
       // Create CSV template with headers
       final headers = [
@@ -90,8 +91,8 @@ class CsvService {
       await file.writeAsString(csvString);
       
       Get.snackbar(
-        'Template Downloaded',
-        'Template CSV berhasil didownload',
+        AppLocalizations.of(context)!.templateDownloaded,
+        AppLocalizations.of(context)!.templateDownloadedDesc,
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.successColor,
         colorText: Colors.white,
@@ -99,13 +100,13 @@ class CsvService {
       );
       
       // Open share dialog
-      await _shareFile(file, 'product_template.csv');
+      await _shareFile(file, 'product_template.csv', context);
       
     } catch (e) {
       print('❌ Error downloading template: $e');
       Get.snackbar(
-        'Error',
-        'Gagal mendownload template: $e',
+        AppLocalizations.of(context)!.error,
+        '${AppLocalizations.of(context)!.failedToDownloadTemplate}: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.errorColor,
         colorText: Colors.white,
@@ -114,7 +115,7 @@ class CsvService {
   }
   
   /// Pick and parse CSV file for import
-  Future<List<Map<String, dynamic>>?> pickAndParseCSV() async {
+  Future<List<Map<String, dynamic>>?> pickAndParseCSV(BuildContext context) async {
     try {
       // Pick CSV file
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -180,8 +181,8 @@ class CsvService {
       }
       
       Get.snackbar(
-        'CSV Parsed',
-        'Berhasil memparse ${products.length} produk dari CSV',
+        AppLocalizations.of(context)!.csvParsed,
+        AppLocalizations.of(context)!.csvParsedDesc(products.length),
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.successColor,
         colorText: Colors.white,
@@ -193,8 +194,8 @@ class CsvService {
     } catch (e) {
       print('❌ Error parsing CSV: $e');
       Get.snackbar(
-        'Error',
-        'Gagal memparse file CSV: $e',
+        AppLocalizations.of(context)!.error,
+        '${AppLocalizations.of(context)!.failedToParseCsv}: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.errorColor,
         colorText: Colors.white,
@@ -273,7 +274,7 @@ class CsvService {
   }
   
   /// Export products to CSV file
-  Future<void> exportProductsToCSV(List<Product> products, String filename) async {
+  Future<void> exportProductsToCSV(List<Product> products, String filename, BuildContext context) async {
     try {
       // Convert products to CSV
       final csvString = productsToCSV(products);
@@ -287,8 +288,8 @@ class CsvService {
       
       // Show success message
       Get.snackbar(
-        'Export Berhasil',
-        '${products.length} produk berhasil diekspor',
+        AppLocalizations.of(context)!.exportSuccess,
+        AppLocalizations.of(context)!.exportSuccessDesc(products.length),
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.successColor,
         colorText: Colors.white,
@@ -296,13 +297,13 @@ class CsvService {
       );
       
       // Open share dialog
-      await _shareFile(file, filename);
+      await _shareFile(file, filename, context);
       
     } catch (e) {
       print('❌ Error exporting products: $e');
       Get.snackbar(
-        'Error',
-        'Gagal mengekspor produk: $e',
+        AppLocalizations.of(context)!.error,
+        '${AppLocalizations.of(context)!.failedToExportProducts}: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.errorColor,
         colorText: Colors.white,
@@ -311,7 +312,7 @@ class CsvService {
   }
   
   /// Share file using native share dialog
-  Future<void> _shareFile(File file, String filename) async {
+  Future<void> _shareFile(File file, String filename, BuildContext context) async {
     try {
       await Share.shareXFiles(
         [XFile(file.path)],
@@ -323,8 +324,8 @@ class CsvService {
       
       // Show fallback message with file location
       Get.snackbar(
-        'File Tersimpan',
-        'File tersimpan di: ${file.path}\nGunakan file manager untuk membuka file.',
+        AppLocalizations.of(context)!.fileSaved,
+        AppLocalizations.of(context)!.fileSavedDesc(file.path),
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.primaryColor,
         colorText: Colors.white,

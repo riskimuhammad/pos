@@ -4,6 +4,7 @@ import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/core/controllers/category_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/features/products/presentation/widgets/add_category_dialog.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class CategoriesManagementDialog extends StatefulWidget {
   const CategoriesManagementDialog({super.key});
@@ -38,8 +39,8 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
       _filteredCategories = _categoryController.categories;
     } catch (e) {
       Get.snackbar(
-        'Error',
-        'Gagal memuat kategori: $e',
+        AppLocalizations.of(context)!.error,
+        '${AppLocalizations.of(context)!.failedToLoadCategories}: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.errorColor,
         colorText: Colors.white,
@@ -83,7 +84,7 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Kelola Kategori',
+                    AppLocalizations.of(context)!.categoryManagement,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.primaryColor,
@@ -103,7 +104,7 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Cari kategori...',
+                hintText: AppLocalizations.of(context)!.searchCategory,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -119,7 +120,7 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
               child: ElevatedButton.icon(
                 onPressed: _showAddCategoryDialog,
                 icon: const Icon(Icons.add),
-                label: const Text('Tambah Kategori'),
+                label: Text(AppLocalizations.of(context)!.addCategory),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
@@ -165,8 +166,8 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
           const SizedBox(height: 16),
           Text(
             _searchController.text.isEmpty
-                ? 'Belum ada kategori'
-                : 'Kategori tidak ditemukan',
+                ? AppLocalizations.of(context)!.noCategories
+                : AppLocalizations.of(context)!.categoryNotFound,
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey[600],
@@ -176,8 +177,8 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
           const SizedBox(height: 8),
           Text(
             _searchController.text.isEmpty
-                ? 'Tambahkan kategori pertama Anda'
-                : 'Coba kata kunci lain',
+                ? AppLocalizations.of(context)!.addFirstCategory
+                : AppLocalizations.of(context)!.tryDifferentKeyword,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[500],
@@ -220,13 +221,13 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
               onPressed: () => _showEditCategoryDialog(category),
               icon: const Icon(Icons.edit, size: 20),
               color: AppTheme.primaryColor,
-              tooltip: 'Edit',
+              tooltip: AppLocalizations.of(context)!.edit,
             ),
             IconButton(
               onPressed: () => _showDeleteConfirmation(category),
               icon: const Icon(Icons.delete, size: 20),
               color: Colors.red[400],
-              tooltip: 'Hapus',
+              tooltip: AppLocalizations.of(context)!.delete,
             ),
           ],
         ),
@@ -240,13 +241,13 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
         onSubmit: (category) {
           _loadCategories(); // Reload categories
          Navigator.of(context).pop(category);
-          Get.snackbar(
-        'Berhasil',
-        'Kategori "${category.name}" berhasil ditambahkan',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: AppTheme.successColor,
-        colorText: Colors.white,
-      );
+        Get.snackbar(
+          AppLocalizations.of(context)!.success,
+          AppLocalizations.of(context)!.categoryAdded,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: AppTheme.successColor,
+          colorText: Colors.white,
+        );
         },
       ),
     );
@@ -258,15 +259,15 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
     
     Get.dialog(
       AlertDialog(
-        title: const Text('Edit Kategori'),
+        title: Text(AppLocalizations.of(context)!.editCategory),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nama Kategori',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.categoryName,
+                border: const OutlineInputBorder(),
               ),
               autofocus: true,
             ),
@@ -275,14 +276,14 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
         actions: [
           TextButton(
             onPressed: () => Get.back(),
-            child: const Text('Batal'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.trim().isEmpty) {
                 Get.snackbar(
-                  'Error',
-                  'Nama kategori tidak boleh kosong',
+                  AppLocalizations.of(context)!.error,
+                  AppLocalizations.of(context)!.categoryNameRequired,
                   snackPosition: SnackPosition.TOP,
                   backgroundColor: AppTheme.errorColor,
                   colorText: Colors.white,
@@ -296,7 +297,7 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Simpan'),
+            child: Text(AppLocalizations.of(context)!.save),
           ),
         ],
       ),
@@ -321,7 +322,7 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
-            child: const Text('Hapus'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -356,8 +357,8 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
       await _loadCategories();
       
       Get.snackbar(
-        'Berhasil',
-        'Kategori "$newName" berhasil diperbarui',
+        AppLocalizations.of(context)!.success,
+        AppLocalizations.of(context)!.categoryUpdated,
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.successColor,
         colorText: Colors.white,
@@ -369,8 +370,8 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
       }
       
       Get.snackbar(
-        'Error',
-        'Gagal memperbarui kategori: $e',
+        AppLocalizations.of(context)!.error,
+        '${AppLocalizations.of(context)!.failedToUpdateCategory}: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.errorColor,
         colorText: Colors.white,
@@ -405,8 +406,8 @@ class _CategoriesManagementDialogState extends State<CategoriesManagementDialog>
       }
       
       Get.snackbar(
-        'Error',
-        'Gagal menghapus kategori: $e',
+        AppLocalizations.of(context)!.error,
+        '${AppLocalizations.of(context)!.failedToDeleteCategory}: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppTheme.errorColor,
         colorText: Colors.white,

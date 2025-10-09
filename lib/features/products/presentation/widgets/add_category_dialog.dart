@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/core/controllers/category_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class AddCategoryDialog extends StatefulWidget {
   final Function(Category) onSubmit;
@@ -94,9 +95,9 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Tambah Kategori',
+                      AppLocalizations.of(context)!.addCategory,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -135,14 +136,14 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                       // Category Name
                       _buildTextFormField(
                         controller: _nameController,
-                        label: 'Nama Kategori *',
+                        label: '${AppLocalizations.of(context)!.categoryName} *',
                         hint: 'Masukkan nama kategori',
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Nama kategori harus diisi';
+                            return AppLocalizations.of(context)!.categoryNameRequired;
                           }
                           if (value.length < 2) {
-                            return 'Nama kategori minimal 2 karakter';
+                            return AppLocalizations.of(context)!.categoryNameMinLength;
                           }
                           return null;
                         },
@@ -152,8 +153,8 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                       // Description
                       _buildTextFormField(
                         controller: _descriptionController,
-                        label: 'Deskripsi',
-                        hint: 'Deskripsi kategori (opsional)',
+                        label: AppLocalizations.of(context)!.categoryDescription,
+                        hint: AppLocalizations.of(context)!.categoryDescriptionHint,
                         maxLines: 3,
                       ),
                       const SizedBox(height: 16),
@@ -205,7 +206,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Status Aktif',
+                                    AppLocalizations.of(context)!.isActive,
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -270,7 +271,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Batal',
+                                        AppLocalizations.of(context)!.cancel,
                                         style: TextStyle(
                                           color: Colors.grey[700],
                                           fontWeight: FontWeight.w600,
@@ -327,8 +328,8 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      const Text(
-                                        'Simpan',
+                                      Text(
+                                        AppLocalizations.of(context)!.save,
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w600,

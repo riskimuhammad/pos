@@ -144,12 +144,7 @@ class DashboardController extends GetxController {
 
   // Navigate to Inventory
   void navigateToInventory() {
-    // TODO: Implement navigation to Inventory
-    Get.snackbar(
-      'Info',
-      'Navigasi ke Inventory akan segera tersedia',
-      snackPosition: SnackPosition.TOP,
-    );
+    Get.toNamed('/inventory');
   }
 
   // Navigate to Reports

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:pos/core/controllers/category_controller.dart';
 import 'package:pos/features/products/presentation/widgets/product_card.dart';
 import 'package:pos/features/products/presentation/widgets/product_search_bar.dart';
@@ -133,7 +134,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    'Total Produk',
+                    AppLocalizations.of(context)!.products,
                     '${_controller.products.length}',
                     Icons.inventory_2,
                     AppTheme.primaryColor,
@@ -155,7 +156,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                     builder: (context, snapshot) {
                       final lowStockCount = snapshot.hasData ? snapshot.data!.length : 0;
                       return _buildStatCard(
-                        'Stok Rendah',
+                        AppLocalizations.of(context)!.lowStock,
                         '$lowStockCount',
                         Icons.warning,
                         AppTheme.warningColor,
@@ -389,12 +390,12 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
   void _showDeleteConfirmation(Product product) {
     Get.dialog(
       AlertDialog(
-        title: Text('Hapus Produk'),
-        content: Text('Apakah Anda yakin ingin menghapus "${product.name}"?'),
+        title: Text(AppLocalizations.of(context)!.deleteProduct),
+        content: Text(AppLocalizations.of(context)!.confirmDeleteProduct(product.name)),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
-            child: Text('Batal'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -402,7 +403,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
               _controller.deleteProduct(product.id);
             },
             child: Text(
-              'Hapus',
+              AppLocalizations.of(context)!.delete,
               style: TextStyle(color: Colors.red),
             ),
           ),
@@ -435,8 +436,8 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
             
             // Show success message
             Get.snackbar(
-              'Import Berhasil',
-              '${importedProducts.length} produk berhasil diimport',
+              AppLocalizations.of(context)!.importSuccess,
+              AppLocalizations.of(context)!.importSuccessDesc(importedProducts.length),
               snackPosition: SnackPosition.TOP,
               backgroundColor: AppTheme.successColor,
               colorText: Colors.white,
@@ -450,8 +451,8 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
             }
             
             Get.snackbar(
-              'Error',
-              'Gagal mengimport produk: $e',
+              AppLocalizations.of(context)!.error,
+              '${AppLocalizations.of(context)!.failedToImportProductsDesc}: $e',
               snackPosition: SnackPosition.TOP,
               backgroundColor: AppTheme.errorColor,
               colorText: Colors.white,
