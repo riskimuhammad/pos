@@ -71,8 +71,10 @@ class DatabaseSeeder {
       final location = Location(
         id: 'default-location-id',
         tenantId: 'default-tenant-id',
-        name: 'Default Location',
-        address: 'Default Location Address',
+        name: 'Main Store',
+        type: 'store',
+        address: 'Main Store Address',
+        isPrimary: true, // Set as primary location
         isActive: true,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -83,6 +85,18 @@ class DatabaseSeeder {
       
       await db.insert('locations', location.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
       print('📍 Seeded default location');
+    } else {
+      // Update existing location to be primary if it's not already
+      final existingLocationData = existingLocation.first;
+      if ((existingLocationData['is_primary'] as int? ?? 0) == 0) {
+        await db.update(
+          'locations',
+          {'is_primary': 1, 'name': 'Main Store', 'type': 'store'},
+          where: 'id = ?',
+          whereArgs: ['default-location-id'],
+        );
+        print('📍 Updated existing location to be primary');
+      }
     }
   }
 
@@ -142,6 +156,58 @@ class DatabaseSeeder {
     } catch (e) {
       print('❌ Failed to clear seeded data: $e');
       rethrow;
+    }
+  }
+
+  /// Fix products without inventory records
+  Future<void> fixProductsWithoutInventory() async {
+    final db = await _databaseHelper.database;
+    
+    // Get all products that don't have inventory records
+    final productsWithoutInventory = await db.rawQuery('''
+      SELECT p.* FROM products p
+      LEFT JOIN inventory i ON p.id = i.product_id
+      WHERE i.product_id IS NULL AND p.deleted_at IS NULL
+    ''');
+    
+    if (productsWithoutInventory.isNotEmpty) {
+      print('🔧 Found ${productsWithoutInventory.length} products without inventory records');
+      
+      // Get primary location
+      final primaryLocation = await db.query(
+        'locations',
+        where: 'tenant_id = ? AND is_primary = 1 AND deleted_at IS NULL',
+        whereArgs: ['default-tenant-id'],
+      );
+      
+      if (primaryLocation.isNotEmpty) {
+        final locationId = primaryLocation.first['id'] as String;
+        
+        for (final productData in productsWithoutInventory) {
+          final productId = productData['id'] as String;
+          final productName = productData['name'] as String;
+          
+          // Create inventory record
+          final inventory = {
+            'id': 'inv_${DateTime.now().millisecondsSinceEpoch}_${productId}',
+            'tenant_id': 'default-tenant-id',
+            'product_id': productId,
+            'location_id': locationId,
+            'quantity': 0,
+            'reserved': 0,
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+            'sync_status': 'pending',
+            'last_synced_at': null,
+          };
+          
+          await db.insert('inventory', inventory);
+          print('✅ Created inventory for product: $productName');
+        }
+      } else {
+        print('❌ No primary location found, cannot create inventory records');
+      }
+    } else {
+      print('✅ All products already have inventory records');
     }
   }
 

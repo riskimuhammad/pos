@@ -533,12 +533,17 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<List<Location>> getLocationsByTenant(String tenantId) async {
     final db = await _database;
+    print('🔍 Querying locations for tenant: $tenantId');
     final result = await db.query(
       'locations',
       where: 'tenant_id = ? AND deleted_at IS NULL',
       whereArgs: [tenantId],
       orderBy: 'is_primary DESC, name ASC',
     );
+    print('🔍 Found ${result.length} locations in database');
+    for (var location in result) {
+      print('  - ${location['name']} (ID: ${location['id']}, Primary: ${location['is_primary']})');
+    }
     return result.map((json) => Location.fromJson(json)).toList();
   }
 
@@ -611,11 +616,16 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<List<Inventory>> getInventoriesByLocation(String locationId) async {
     final db = await _database;
+    print('🔍 Querying inventory for location: $locationId');
     final result = await db.query(
       'inventory',
       where: 'location_id = ?',
       whereArgs: [locationId],
     );
+    print('🔍 Found ${result.length} inventory records for location $locationId');
+    for (var inv in result) {
+      print('  - Product: ${inv['product_id']}, Qty: ${inv['quantity']}');
+    }
     return result.map((json) => Inventory.fromJson(json)).toList();
   }
 
@@ -745,10 +755,12 @@ class LocalDataSourceImpl implements LocalDataSource {
   Future<void> createInitialInventory(Product product) async {
     try {
       // Get primary location for the tenant
-      final primaryLocation = await getPrimaryLocation(product.tenantId);
+      Location? primaryLocation = await getPrimaryLocation(product.tenantId);
+      
+      // If no primary location exists, create one
       if (primaryLocation == null) {
-        print('❌ No primary location found for tenant: ${product.tenantId}');
-        return;
+        print('⚠️ No primary location found, creating one...');
+        primaryLocation = await _ensurePrimaryLocationExists(product.tenantId);
       }
 
       // Create initial inventory record with stock = 0
@@ -765,10 +777,58 @@ class LocalDataSourceImpl implements LocalDataSource {
       );
 
       await createInventory(inventory);
-      print('✅ Initial inventory created for product: ${product.name} (stock: 0)');
+      print('✅ Initial inventory created for product: ${product.name} (stock: 0) in ${primaryLocation.name}');
     } catch (e) {
       print('❌ Error creating initial inventory for product ${product.id}: $e');
       rethrow;
+    }
+  }
+
+  /// Ensure primary location exists, create if not
+  Future<Location> _ensurePrimaryLocationExists(String tenantId) async {
+    final db = await _database;
+    
+    // Check if any location exists for this tenant
+    final existingLocations = await db.query(
+      'locations',
+      where: 'tenant_id = ? AND deleted_at IS NULL',
+      whereArgs: [tenantId],
+    );
+    
+    if (existingLocations.isEmpty) {
+      // Create new primary location
+      final location = Location(
+        id: 'default-location-id',
+        tenantId: tenantId,
+        name: 'Main Store',
+        type: 'store',
+        address: 'Main Store Address',
+        isPrimary: true,
+        isActive: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        deletedAt: null,
+        syncStatus: 'synced',
+        lastSyncedAt: DateTime.now(),
+      );
+      
+      await createLocation(location);
+      print('✅ Created primary location: ${location.name}');
+      return location;
+    } else {
+      // Update first existing location to be primary
+      final firstLocation = existingLocations.first;
+      final location = Location.fromJson(firstLocation);
+      final updatedLocation = location.copyWith(
+        isPrimary: true,
+        name: 'Main Store',
+        type: 'store',
+        updatedAt: DateTime.now(),
+      );
+      
+      await updateLocation(updatedLocation);
+      print('✅ Updated existing location to be primary: ${updatedLocation.name}');
+      return updatedLocation;
     }
   }
 

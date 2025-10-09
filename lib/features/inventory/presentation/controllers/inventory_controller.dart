@@ -52,16 +52,29 @@ class InventoryController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       
+      print('🔍 Loading inventory for tenant: default-tenant-id');
+      print('🔍 Selected location: ${selectedLocationId.value.isEmpty ? "ALL" : selectedLocationId.value}');
+      
       final result = await getInventory(GetInventoryParams(
         tenantId: 'default-tenant-id', // Will be replaced with user session
         locationId: selectedLocationId.value.isEmpty ? null : selectedLocationId.value,
       ));
       
       result.fold(
-        (failure) => _handleFailure(failure),
-        (inventory) => inventoryItems.assignAll(inventory),
+        (failure) {
+          print('❌ Inventory loading failed: ${failure.message}');
+          _handleFailure(failure);
+        },
+        (inventory) {
+          print('✅ Inventory loaded: ${inventory.length} items');
+          for (var item in inventory) {
+            print('  - Product: ${item.productId}, Location: ${item.locationId}, Qty: ${item.quantity}');
+          }
+          inventoryItems.assignAll(inventory);
+        },
       );
     } catch (e) {
+      print('❌ Exception in loadInventory: $e');
       errorMessage.value = 'Failed to load inventory: $e';
     } finally {
       isLoading.value = false;
@@ -216,6 +229,57 @@ class InventoryController extends GetxController {
     _applyFilters();
   }
 
+  Future<void> performStockReceiving({
+    required String productId,
+    required String locationId,
+    required int quantity,
+    required String referenceId,
+    String? notes,
+  }) async {
+    try {
+      isLoading.value = true;
+      
+      // Create stock movement for receiving
+      final stockMovement = StockMovement(
+        id: 'sm_${DateTime.now().millisecondsSinceEpoch}',
+        tenantId: 'default-tenant-id',
+        productId: productId,
+        locationId: locationId,
+        type: StockMovementType.purchase,
+        quantity: quantity,
+        referenceType: 'purchase_order',
+        referenceId: referenceId,
+        notes: 'Stock receiving from PO: $referenceId. ${notes ?? ''}',
+        userId: 'current-user-id',
+        createdAt: DateTime.now(),
+      );
+      
+      final result = await createStockMovement(CreateStockMovementParams(
+        stockMovement: stockMovement,
+      ));
+      
+      result.fold(
+        (failure) => _handleFailure(failure),
+        (movement) {
+          // Update local inventory list
+          _updateInventoryQuantity(productId, locationId, quantity);
+          
+          Get.snackbar(
+            'Success',
+            'Stock received successfully',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: AppTheme.successColor,
+            colorText: Colors.white,
+          );
+        },
+      );
+    } catch (e) {
+      errorMessage.value = 'Failed to receive stock: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   void setSearchQuery(String query) {
     searchQuery.value = query;
     _applyFilters();
@@ -229,11 +293,11 @@ class InventoryController extends GetxController {
       filtered = filtered.where((item) => item.locationId == selectedLocationId.value).toList();
     }
     
-    // Filter by search query
+    // Filter by search query (will be handled by UI with product name lookup)
+    // For now, just return all items - search will be handled in UI layer
     if (searchQuery.value.isNotEmpty) {
-      filtered = filtered.where((item) => 
-        item.productId.toLowerCase().contains(searchQuery.value.toLowerCase())
-      ).toList();
+      // TODO: Implement proper product name search
+      // This requires async product name lookup, so we'll handle it in UI
     }
     
     return filtered;
@@ -245,8 +309,34 @@ class InventoryController extends GetxController {
   }
 
   Future<int> _getCurrentStock(String productId, String locationId) async {
-    // This would need to be implemented with proper stock calculation
-    return 0;
+    try {
+      final result = await getInventory(GetInventoryParams(
+        tenantId: 'default-tenant-id',
+        locationId: locationId,
+      ));
+      
+      return result.fold(
+        (failure) => 0,
+        (inventories) {
+          final inventory = inventories.firstWhere(
+            (inv) => inv.productId == productId && inv.locationId == locationId,
+            orElse: () => Inventory(
+              id: '',
+              tenantId: '',
+              productId: productId,
+              locationId: locationId,
+              quantity: 0,
+              reserved: 0,
+              updatedAt: DateTime.now(),
+            ),
+          );
+          return inventory.quantity;
+        },
+      );
+    } catch (e) {
+      print('Error getting current stock: $e');
+      return 0;
+    }
   }
 
   void _updateInventoryQuantity(String productId, String locationId, int quantityChange) {
@@ -274,4 +364,5 @@ class InventoryController extends GetxController {
       colorText: Colors.white,
     );
   }
+
 }

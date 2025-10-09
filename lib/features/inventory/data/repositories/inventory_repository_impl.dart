@@ -26,21 +26,30 @@ class InventoryRepositoryImpl extends BaseRepository implements InventoryReposit
     int page = 1,
     int limit = 50,
   }) async {
+    print('🔍 InventoryRepository.getInventory called with tenantId: $tenantId, locationId: $locationId');
+    
     return await handleOfflineFirstOperation(
       localOperation: () async {
         if (locationId != null) {
+          print('🔍 Getting inventories for specific location: $locationId');
           final inventories = await localDataSource.getInventoriesByLocation(locationId);
+          print('✅ Found ${inventories.length} inventories for location $locationId');
           return Right(inventories);
         } else {
+          print('🔍 Getting all inventories for tenant: $tenantId');
           // Get all inventories for tenant
           final inventories = <Inventory>[];
           final locations = await localDataSource.getLocationsByTenant(tenantId);
+          print('🔍 Found ${locations.length} locations for tenant');
           
           for (final location in locations) {
+            print('🔍 Getting inventories for location: ${location.name} (${location.id})');
             final locationInventories = await localDataSource.getInventoriesByLocation(location.id);
+            print('🔍 Found ${locationInventories.length} inventories in ${location.name}');
             inventories.addAll(locationInventories);
           }
           
+          print('✅ Total inventories found: ${inventories.length}');
           return Right(inventories);
         }
       },

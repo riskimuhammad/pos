@@ -6,6 +6,8 @@ import 'package:pos/features/inventory/presentation/controllers/inventory_contro
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:pos/features/inventory/presentation/widgets/inventory_card.dart';
 import 'package:pos/features/inventory/presentation/widgets/stock_operation_dialog.dart';
+import 'package:pos/features/inventory/presentation/widgets/product_dropdown.dart';
+import 'package:pos/features/inventory/presentation/widgets/location_dropdown.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -410,15 +412,353 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
       StockOperationDialog(
         onStockAdjustment: () {
           Get.back();
-          // Navigate to stock adjustment page
+          _showStockAdjustmentDialog();
         },
         onStockTransfer: () {
           Get.back();
-          // Navigate to stock transfer page
+          _showStockTransferDialog();
         },
         onStockReceiving: () {
           Get.back();
-          // Navigate to stock receiving page
+          _showStockReceivingDialog();
+        },
+      ),
+    );
+  }
+
+  void _showStockAdjustmentDialog() {
+    String? selectedProductId;
+    String? selectedLocationId;
+    final physicalCountController = TextEditingController();
+    final reasonController = TextEditingController();
+    final notesController = TextEditingController();
+
+    Get.dialog(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(AppLocalizations.of(context)!.stockAdjustment),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ProductDropdown(
+                    selectedProductId: selectedProductId,
+                    onProductSelected: (productId) {
+                      setState(() {
+                        selectedProductId = productId;
+                      });
+                    },
+                    label: 'Select Product',
+                  ),
+                  const SizedBox(height: 16),
+                  LocationDropdown(
+                    selectedLocationId: selectedLocationId,
+                    onLocationSelected: (locationId) {
+                      setState(() {
+                        selectedLocationId = locationId;
+                      });
+                    },
+                    label: 'Select Location',
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: physicalCountController,
+                    decoration: const InputDecoration(
+                      labelText: 'Physical Count',
+                      border: OutlineInputBorder(),
+                      hintText: 'Enter actual stock count',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for Adjustment',
+                      border: OutlineInputBorder(),
+                      hintText: 'e.g., Physical count, Damage, etc.',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (Optional)',
+                      border: OutlineInputBorder(),
+                      hintText: 'Additional notes...',
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text(AppLocalizations.of(context)!.cancel),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedProductId != null &&
+                      selectedLocationId != null &&
+                      physicalCountController.text.isNotEmpty &&
+                      reasonController.text.isNotEmpty) {
+                    await Get.find<InventoryController>().performStockAdjustment(
+                      productId: selectedProductId!,
+                      locationId: selectedLocationId!,
+                      physicalCount: int.parse(physicalCountController.text),
+                      reason: reasonController.text,
+                      notes: notesController.text,
+                    );
+                    Get.back();
+                  } else {
+                    Get.snackbar(
+                      'Validation Error',
+                      'Please fill all required fields',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Colors.orange,
+                      colorText: Colors.white,
+                    );
+                  }
+                },
+                child: Text(AppLocalizations.of(context)!.adjust),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showStockTransferDialog() {
+    String? selectedProductId;
+    String? fromLocationId;
+    String? toLocationId;
+    final quantityController = TextEditingController();
+    final reasonController = TextEditingController();
+    final notesController = TextEditingController();
+
+    Get.dialog(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(AppLocalizations.of(context)!.stockTransfer),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ProductDropdown(
+                    selectedProductId: selectedProductId,
+                    onProductSelected: (productId) {
+                      setState(() {
+                        selectedProductId = productId;
+                      });
+                    },
+                    label: 'Select Product',
+                  ),
+                  const SizedBox(height: 16),
+                  LocationDropdown(
+                    selectedLocationId: fromLocationId,
+                    onLocationSelected: (locationId) {
+                      setState(() {
+                        fromLocationId = locationId;
+                      });
+                    },
+                    label: 'From Location',
+                  ),
+                  const SizedBox(height: 16),
+                  LocationDropdown(
+                    selectedLocationId: toLocationId,
+                    onLocationSelected: (locationId) {
+                      setState(() {
+                        toLocationId = locationId;
+                      });
+                    },
+                    label: 'To Location',
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: quantityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Transfer Quantity',
+                      border: OutlineInputBorder(),
+                      hintText: 'Enter quantity to transfer',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Transfer Reason',
+                      border: OutlineInputBorder(),
+                      hintText: 'e.g., Restocking, Relocation, etc.',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (Optional)',
+                      border: OutlineInputBorder(),
+                      hintText: 'Additional notes...',
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text(AppLocalizations.of(context)!.cancel),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedProductId != null &&
+                      fromLocationId != null &&
+                      toLocationId != null &&
+                      quantityController.text.isNotEmpty &&
+                      reasonController.text.isNotEmpty) {
+                    if (fromLocationId == toLocationId) {
+                      Get.snackbar(
+                        'Validation Error',
+                        'From and To locations cannot be the same',
+                        snackPosition: SnackPosition.TOP,
+                        backgroundColor: Colors.orange,
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
+                    await Get.find<InventoryController>().performStockTransfer(
+                      productId: selectedProductId!,
+                      fromLocationId: fromLocationId!,
+                      toLocationId: toLocationId!,
+                      quantity: int.parse(quantityController.text),
+                      reason: reasonController.text,
+                      notes: notesController.text,
+                    );
+                    Get.back();
+                  } else {
+                    Get.snackbar(
+                      'Validation Error',
+                      'Please fill all required fields',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Colors.orange,
+                      colorText: Colors.white,
+                    );
+                  }
+                },
+                child: Text(AppLocalizations.of(context)!.transfer),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showStockReceivingDialog() {
+    String? selectedProductId;
+    String? selectedLocationId;
+    final quantityController = TextEditingController();
+    final referenceIdController = TextEditingController();
+    final notesController = TextEditingController();
+
+    Get.dialog(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(AppLocalizations.of(context)!.stockReceiving),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ProductDropdown(
+                    selectedProductId: selectedProductId,
+                    onProductSelected: (productId) {
+                      setState(() {
+                        selectedProductId = productId;
+                      });
+                    },
+                    label: 'Select Product',
+                  ),
+                  const SizedBox(height: 16),
+                  LocationDropdown(
+                    selectedLocationId: selectedLocationId,
+                    onLocationSelected: (locationId) {
+                      setState(() {
+                        selectedLocationId = locationId;
+                      });
+                    },
+                    label: 'Receiving Location',
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: quantityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Received Quantity',
+                      border: OutlineInputBorder(),
+                      hintText: 'Enter quantity received',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: referenceIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Purchase Order ID',
+                      border: OutlineInputBorder(),
+                      hintText: 'e.g., PO-2024-001',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (Optional)',
+                      border: OutlineInputBorder(),
+                      hintText: 'Additional notes...',
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text(AppLocalizations.of(context)!.cancel),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedProductId != null &&
+                      selectedLocationId != null &&
+                      quantityController.text.isNotEmpty &&
+                      referenceIdController.text.isNotEmpty) {
+                    await Get.find<InventoryController>().performStockReceiving(
+                      productId: selectedProductId!,
+                      locationId: selectedLocationId!,
+                      quantity: int.parse(quantityController.text),
+                      referenceId: referenceIdController.text,
+                      notes: notesController.text,
+                    );
+                    Get.back();
+                  } else {
+                    Get.snackbar(
+                      'Validation Error',
+                      'Please fill all required fields',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Colors.orange,
+                      colorText: Colors.white,
+                    );
+                  }
+                },
+                child: Text(AppLocalizations.of(context)!.save),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -468,4 +808,5 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
       snackPosition: SnackPosition.TOP,
     );
   }
+
 }

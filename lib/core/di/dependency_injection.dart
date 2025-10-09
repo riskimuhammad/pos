@@ -61,6 +61,11 @@ class DependencyInjection {
     final Database dbInstance = await Get.find<DatabaseHelper>().database;
     Get.put<Database>(dbInstance, permanent: true);
     
+    // Initialize database with essential data
+    Get.lazyPut<DatabaseSeeder>(() => DatabaseSeeder(Get.find<DatabaseHelper>()));
+    final seeder = Get.find<DatabaseSeeder>();
+    await seeder.seedDatabase();
+    
     // HTTP Client
     Get.lazyPut<Dio>(() => Dio());
     
@@ -196,7 +201,6 @@ class DependencyInjection {
     ));
 
         // Data services
-        Get.lazyPut<DatabaseSeeder>(() => DatabaseSeeder(Get.find<DatabaseHelper>()));
         Get.lazyPut<ProductSyncService>(() => ProductSyncService(
           databaseHelper: Get.find<DatabaseHelper>(),
           databaseSeeder: Get.find<DatabaseSeeder>(),

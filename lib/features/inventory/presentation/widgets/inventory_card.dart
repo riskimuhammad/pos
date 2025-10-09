@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:pos/core/storage/local_datasource.dart';
+import 'package:get/get.dart';
 
 class InventoryCard extends StatelessWidget {
   final Inventory inventory;
@@ -41,13 +43,28 @@ class InventoryCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          inventory.productId, // This should be product name
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
+                        FutureBuilder<String>(
+                          future: _getProductName(inventory.productId),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              return Text(
+                                snapshot.data!,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              );
+                            }
+                            return Text(
+                              'Loading...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[400],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -222,5 +239,15 @@ class InventoryCard extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<String> _getProductName(String productId) async {
+    try {
+      final localDataSource = Get.find<LocalDataSource>();
+      final product = await localDataSource.getProduct(productId);
+      return product?.name ?? 'Unknown Product';
+    } catch (e) {
+      return 'Unknown Product';
+    }
   }
 }

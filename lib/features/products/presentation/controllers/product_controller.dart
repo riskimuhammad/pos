@@ -83,6 +83,7 @@ class ProductController extends GetxController {
         (createdProduct) async {
           // Create initial inventory record
           try {
+            print('🔍 Creating initial inventory for product: ${createdProduct.name} (ID: ${createdProduct.id})');
             await localDataSource.createInitialInventory(createdProduct);
             print('✅ Initial inventory created for: ${createdProduct.name}');
           } catch (e) {
