@@ -276,7 +276,7 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
       }
 
       return ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 150, top: 16,left: 16,right: 16),
         itemCount: filteredInventory.length,
         itemBuilder: (context, index) {
           final inventory = filteredInventory[index];
@@ -325,7 +325,7 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
       }
 
       return ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 150, top: 16,left: 16,right: 16),
         itemCount: lowStockItems.length,
         itemBuilder: (context, index) {
           final inventory = lowStockItems[index];
@@ -368,7 +368,7 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
       }
 
       return ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 150, top: 16,left: 16,right: 16),
         itemCount: outOfStockItems.length,
         itemBuilder: (context, index) {
           final inventory = outOfStockItems[index];
