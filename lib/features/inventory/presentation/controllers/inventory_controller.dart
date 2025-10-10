@@ -7,6 +7,8 @@ import 'package:pos/features/inventory/domain/usecases/create_stock_movement.dar
 import 'package:pos/features/inventory/domain/usecases/get_stock_movements.dart';
 import 'package:pos/features/inventory/domain/usecases/get_locations.dart';
 import 'package:pos/features/inventory/domain/usecases/get_low_stock_products.dart';
+import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:pos/core/data/database_seeder.dart';
 import 'package:pos/core/theme/app_theme.dart';
 
 class InventoryController extends GetxController {
@@ -33,6 +35,62 @@ class InventoryController extends GetxController {
   final RxString searchQuery = ''.obs;
   final RxString errorMessage = ''.obs;
 
+  /// Get current user ID from auth session
+  String get _currentUserId {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.user.id.isNotEmpty) {
+        return session.user.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using system user: $e');
+    }
+    return 'system'; // Fallback to system user
+  }
+
+  /// Get current tenant ID from auth session
+  String get _currentTenantId {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.id.isNotEmpty) {
+        return session.tenant.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant: $e');
+    }
+    return 'default-tenant-id'; // Fallback to default tenant
+  }
+
+  /// Get current tenant name from auth session
+  String get _getCurrentTenantName {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.name.isNotEmpty) {
+        return session.tenant.name;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant name: $e');
+    }
+    return 'Default Tenant'; // Fallback to default tenant name
+  }
+
+  /// Get current tenant email from auth session
+  String get _getCurrentTenantEmail {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.email != null && session.tenant.email!.isNotEmpty) {
+        return session.tenant.email!;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant email: $e');
+    }
+    return 'default@tenant.com'; // Fallback to default tenant email
+  }
+
   // Getters
   List<Inventory> get filteredInventory => _applyFilters();
   int get totalProducts => inventoryItems.length;
@@ -52,29 +110,16 @@ class InventoryController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       
-      print('🔍 Loading inventory for tenant: default-tenant-id');
-      print('🔍 Selected location: ${selectedLocationId.value.isEmpty ? "ALL" : selectedLocationId.value}');
-      
       final result = await getInventory(GetInventoryParams(
-        tenantId: 'default-tenant-id', // Will be replaced with user session
+        tenantId: _currentTenantId,
         locationId: selectedLocationId.value.isEmpty ? null : selectedLocationId.value,
       ));
       
       result.fold(
-        (failure) {
-          print('❌ Inventory loading failed: ${failure.message}');
-          _handleFailure(failure);
-        },
-        (inventory) {
-          print('✅ Inventory loaded: ${inventory.length} items');
-          for (var item in inventory) {
-            print('  - Product: ${item.productId}, Location: ${item.locationId}, Qty: ${item.quantity}');
-          }
-          inventoryItems.assignAll(inventory);
-        },
+        (failure) => _handleFailure(failure),
+        (inventory) => inventoryItems.assignAll(inventory),
       );
     } catch (e) {
-      print('❌ Exception in loadInventory: $e');
       errorMessage.value = 'Failed to load inventory: $e';
     } finally {
       isLoading.value = false;
@@ -84,7 +129,7 @@ class InventoryController extends GetxController {
   Future<void> loadLocations() async {
     try {
       final result = await getLocations(GetLocationsParams(
-        tenantId: 'default-tenant-id', // Will be replaced with user session
+        tenantId: _currentTenantId,
       ));
       
       result.fold(
@@ -122,6 +167,16 @@ class InventoryController extends GetxController {
     try {
       isLoading.value = true;
       
+      // Ensure tenant and location exist before creating stock movement
+      final databaseSeeder = Get.find<DatabaseSeeder>();
+      final tenantName = _getCurrentTenantName;
+      final tenantEmail = _getCurrentTenantEmail;
+      await databaseSeeder.ensureTenantAndLocationExist(
+        _currentTenantId, 
+        tenantName, 
+        tenantEmail
+      );
+      
       // Get current stock
       final currentStock = await _getCurrentStock(productId, locationId);
       final adjustment = physicalCount - currentStock;
@@ -129,13 +184,13 @@ class InventoryController extends GetxController {
       // Create stock movement
       final stockMovement = StockMovement(
         id: 'sm_${DateTime.now().millisecondsSinceEpoch}',
-        tenantId: 'default-tenant-id',
+        tenantId: _currentTenantId,
         productId: productId,
         locationId: locationId,
         type: StockMovementType.adjustment,
         quantity: adjustment,
         notes: 'Stock adjustment: $reason. ${notes ?? ''}',
-        userId: 'current-user-id',
+        userId: _currentUserId,
         createdAt: DateTime.now(),
       );
       
@@ -179,26 +234,26 @@ class InventoryController extends GetxController {
       // Create outbound movement
       final outboundMovement = StockMovement(
         id: 'sm_out_${DateTime.now().millisecondsSinceEpoch}',
-        tenantId: 'default-tenant-id',
+        tenantId: _currentTenantId,
         productId: productId,
         locationId: fromLocationId,
         type: StockMovementType.transfer,
         quantity: -quantity, // Negative for outbound
         notes: 'Transfer to $toLocationId: $reason. ${notes ?? ''}',
-        userId: 'current-user-id',
+        userId: _currentUserId,
         createdAt: DateTime.now(),
       );
       
       // Create inbound movement
       final inboundMovement = StockMovement(
         id: 'sm_in_${DateTime.now().millisecondsSinceEpoch}',
-        tenantId: 'default-tenant-id',
+        tenantId: _currentTenantId,
         productId: productId,
         locationId: toLocationId,
         type: StockMovementType.transfer,
         quantity: quantity, // Positive for inbound
         notes: 'Transfer from $fromLocationId: $reason. ${notes ?? ''}',
-        userId: 'current-user-id',
+        userId: _currentUserId,
         createdAt: DateTime.now(),
       );
       
@@ -229,6 +284,7 @@ class InventoryController extends GetxController {
     _applyFilters();
   }
 
+
   Future<void> performStockReceiving({
     required String productId,
     required String locationId,
@@ -242,7 +298,7 @@ class InventoryController extends GetxController {
       // Create stock movement for receiving
       final stockMovement = StockMovement(
         id: 'sm_${DateTime.now().millisecondsSinceEpoch}',
-        tenantId: 'default-tenant-id',
+        tenantId: _currentTenantId,
         productId: productId,
         locationId: locationId,
         type: StockMovementType.purchase,
@@ -250,7 +306,7 @@ class InventoryController extends GetxController {
         referenceType: 'purchase_order',
         referenceId: referenceId,
         notes: 'Stock receiving from PO: $referenceId. ${notes ?? ''}',
-        userId: 'current-user-id',
+        userId: _currentUserId,
         createdAt: DateTime.now(),
       );
       
@@ -311,7 +367,7 @@ class InventoryController extends GetxController {
   Future<int> _getCurrentStock(String productId, String locationId) async {
     try {
       final result = await getInventory(GetInventoryParams(
-        tenantId: 'default-tenant-id',
+        tenantId: _currentTenantId,
         locationId: locationId,
       ));
       

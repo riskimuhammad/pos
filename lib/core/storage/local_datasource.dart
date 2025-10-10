@@ -533,17 +533,12 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<List<Location>> getLocationsByTenant(String tenantId) async {
     final db = await _database;
-    print('🔍 Querying locations for tenant: $tenantId');
     final result = await db.query(
       'locations',
       where: 'tenant_id = ? AND deleted_at IS NULL',
       whereArgs: [tenantId],
       orderBy: 'is_primary DESC, name ASC',
     );
-    print('🔍 Found ${result.length} locations in database');
-    for (var location in result) {
-      print('  - ${location['name']} (ID: ${location['id']}, Primary: ${location['is_primary']})');
-    }
     return result.map((json) => Location.fromJson(json)).toList();
   }
 
@@ -616,16 +611,11 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<List<Inventory>> getInventoriesByLocation(String locationId) async {
     final db = await _database;
-    print('🔍 Querying inventory for location: $locationId');
     final result = await db.query(
       'inventory',
       where: 'location_id = ?',
       whereArgs: [locationId],
     );
-    print('🔍 Found ${result.length} inventory records for location $locationId');
-    for (var inv in result) {
-      print('  - Product: ${inv['product_id']}, Qty: ${inv['quantity']}');
-    }
     return result.map((json) => Inventory.fromJson(json)).toList();
   }
 
@@ -796,9 +786,10 @@ class LocalDataSourceImpl implements LocalDataSource {
     );
     
     if (existingLocations.isEmpty) {
-      // Create new primary location
+      // Create new primary location with unique ID based on tenant
+      final locationId = tenantId == 'default-tenant-id' ? 'default-location-id' : '${tenantId}_location';
       final location = Location(
-        id: 'default-location-id',
+        id: locationId,
         tenantId: tenantId,
         name: 'Main Store',
         type: 'store',
@@ -955,9 +946,72 @@ class LocalDataSourceImpl implements LocalDataSource {
   // Stock Movement operations
   @override
   Future<StockMovement> createStockMovement(StockMovement movement) async {
+    try {
+      final db = await _database;
+      print('🔍 Creating stock movement: ${movement.toJson()}');
+      
+      // Validate foreign key references before insert
+      await _validateStockMovementReferences(movement);
+      
+      await db.insert('stock_movements', movement.toJson());
+      print('✅ Stock movement created successfully: ${movement.id}');
+      return movement;
+    } catch (e) {
+      print('❌ Error creating stock movement: $e');
+      print('❌ Movement data: ${movement.toJson()}');
+      rethrow;
+    }
+  }
+
+  /// Validate that all foreign key references exist in database
+  Future<void> _validateStockMovementReferences(StockMovement movement) async {
     final db = await _database;
-    await db.insert('stock_movements', movement.toJson());
-    return movement;
+    
+    // Check tenant exists
+    final tenantResult = await db.query(
+      'tenants',
+      where: 'id = ? AND deleted_at IS NULL',
+      whereArgs: [movement.tenantId],
+    );
+    if (tenantResult.isEmpty) {
+      throw Exception('Tenant not found: ${movement.tenantId}');
+    }
+    print('✅ Tenant exists: ${movement.tenantId}');
+    
+    // Check product exists
+    final productResult = await db.query(
+      'products',
+      where: 'id = ? AND deleted_at IS NULL',
+      whereArgs: [movement.productId],
+    );
+    if (productResult.isEmpty) {
+      throw Exception('Product not found: ${movement.productId}');
+    }
+    print('✅ Product exists: ${movement.productId}');
+    
+    // Check location exists
+    final locationResult = await db.query(
+      'locations',
+      where: 'id = ? AND deleted_at IS NULL',
+      whereArgs: [movement.locationId],
+    );
+    if (locationResult.isEmpty) {
+      throw Exception('Location not found: ${movement.locationId}');
+    }
+    print('✅ Location exists: ${movement.locationId}');
+    
+    // Check user exists (if provided)
+    if (movement.userId != null && movement.userId!.isNotEmpty) {
+      final userResult = await db.query(
+        'users',
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [movement.userId],
+      );
+      if (userResult.isEmpty) {
+        throw Exception('User not found: ${movement.userId}');
+      }
+      print('✅ User exists: ${movement.userId}');
+    }
   }
 
   @override

@@ -5,6 +5,7 @@ import 'package:pos/features/products/domain/usecases/get_products.dart';
 import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/update_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
+import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/core/sync/product_sync_service.dart';
 import 'package:pos/core/data/database_seeder.dart';
@@ -38,6 +39,20 @@ class ProductController extends GetxController {
   final RxString searchQuery = ''.obs;
   final RxString selectedCategoryId = ''.obs;
   final RxString errorMessage = ''.obs;
+
+  /// Get current tenant ID from auth session
+  String get _currentTenantId {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.id.isNotEmpty) {
+        return session.tenant.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant: $e');
+    }
+    return 'default-tenant-id'; // Fallback to default tenant
+  }
 
   // Getters
   List<Product> get allProducts => products;
@@ -83,7 +98,6 @@ class ProductController extends GetxController {
         (createdProduct) async {
           // Create initial inventory record
           try {
-            print('🔍 Creating initial inventory for product: ${createdProduct.name} (ID: ${createdProduct.id})');
             await localDataSource.createInitialInventory(createdProduct);
             print('✅ Initial inventory created for: ${createdProduct.name}');
           } catch (e) {
@@ -361,7 +375,7 @@ class ProductController extends GetxController {
 
   Future<List<Product>> getLowStockProducts() async {
     try {
-      return await localDataSource.getLowStockProducts('default-tenant-id');
+      return await localDataSource.getLowStockProducts(_currentTenantId);
     } catch (e) {
       print('❌ Error getting low stock products: $e');
       return <Product>[];

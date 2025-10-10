@@ -15,18 +15,26 @@ class CreateStockMovement {
 
   Future<Either<Failure, StockMovement>> call(CreateStockMovementParams params) async {
     try {
+      print('🔍 CreateStockMovement called with: ${params.stockMovement.toJson()}');
+      
       // Validate stock movement
       final validation = _validateStockMovement(params.stockMovement);
       if (validation != null) {
+        print('❌ Validation failed: $validation');
         return Left(ValidationFailure(message: validation));
       }
 
       // Create stock movement
+      print('🔍 Creating stock movement...');
       final movementResult = await stockMovementRepository.createStockMovement(params.stockMovement);
       
       return movementResult.fold(
-        (failure) => Left(failure),
+        (failure) {
+          print('❌ Stock movement creation failed: ${failure.message}');
+          return Left(failure);
+        },
         (movement) async {
+          print('✅ Stock movement created, updating inventory...');
           // Update inventory quantity
           final updateResult = await inventoryRepository.updateInventoryQuantity(
             productId: params.stockMovement.productId,
@@ -35,12 +43,19 @@ class CreateStockMovement {
           );
           
           return updateResult.fold(
-            (failure) => Left(failure),
-            (_) => Right(movement),
+            (failure) {
+              print('❌ Inventory update failed: ${failure.message}');
+              return Left(failure);
+            },
+            (_) {
+              print('✅ Stock movement and inventory update completed');
+              return Right(movement);
+            },
           );
         },
       );
     } catch (e) {
+      print('❌ Exception in CreateStockMovement: $e');
       return Left(DatabaseFailure(message: e.toString()));
     }
   }

@@ -26,30 +26,21 @@ class InventoryRepositoryImpl extends BaseRepository implements InventoryReposit
     int page = 1,
     int limit = 50,
   }) async {
-    print('🔍 InventoryRepository.getInventory called with tenantId: $tenantId, locationId: $locationId');
-    
     return await handleOfflineFirstOperation(
       localOperation: () async {
         if (locationId != null) {
-          print('🔍 Getting inventories for specific location: $locationId');
           final inventories = await localDataSource.getInventoriesByLocation(locationId);
-          print('✅ Found ${inventories.length} inventories for location $locationId');
           return Right(inventories);
         } else {
-          print('🔍 Getting all inventories for tenant: $tenantId');
           // Get all inventories for tenant
           final inventories = <Inventory>[];
           final locations = await localDataSource.getLocationsByTenant(tenantId);
-          print('🔍 Found ${locations.length} locations for tenant');
           
           for (final location in locations) {
-            print('🔍 Getting inventories for location: ${location.name} (${location.id})');
             final locationInventories = await localDataSource.getInventoriesByLocation(location.id);
-            print('🔍 Found ${locationInventories.length} inventories in ${location.name}');
             inventories.addAll(locationInventories);
           }
           
-          print('✅ Total inventories found: ${inventories.length}');
           return Right(inventories);
         }
       },
@@ -144,13 +135,21 @@ class InventoryRepositoryImpl extends BaseRepository implements InventoryReposit
     required int quantityChange,
   }) async {
     return await handleDatabaseOperation(() async {
+      print('🔍 Updating inventory quantity: productId=$productId, locationId=$locationId, change=$quantityChange');
+      
       final inventory = await localDataSource.getInventory(productId, locationId);
       if (inventory != null) {
+        print('🔍 Found inventory: current quantity=${inventory.quantity}');
         final updatedInventory = inventory.copyWith(
           quantity: inventory.quantity + quantityChange,
           updatedAt: DateTime.now(),
         );
+        print('🔍 Updated inventory: new quantity=${updatedInventory.quantity}');
         await localDataSource.updateInventory(updatedInventory);
+        print('✅ Inventory updated successfully');
+      } else {
+        print('❌ No inventory found for productId=$productId, locationId=$locationId');
+        throw Exception('Inventory not found for product $productId at location $locationId');
       }
       return const Right(null);
     });

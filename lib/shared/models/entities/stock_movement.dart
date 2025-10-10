@@ -50,7 +50,7 @@ class StockMovement extends Equatable {
       productId: json['product_id'] as String,
       locationId: json['location_id'] as String,
       type: StockMovementType.values.firstWhere(
-        (e) => e.name == json['type'].toString().toLowerCase(),
+        (e) => e.name == json['type'].toString(),
         orElse: () => StockMovementType.adjustment,
       ),
       quantity: json['quantity'] as int,
@@ -73,7 +73,7 @@ class StockMovement extends Equatable {
       'tenant_id': tenantId,
       'product_id': productId,
       'location_id': locationId,
-      'type': type.name.toUpperCase(),
+      'type': type.name,
       'quantity': quantity,
       'cost_price': costPrice,
       'reference_type': referenceType,

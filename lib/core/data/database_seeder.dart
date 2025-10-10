@@ -12,24 +12,122 @@ class DatabaseSeeder {
     try {
       print('🌱 Initializing database with minimal required data...');
       
-      
-      // Seed tenant and location first (required for foreign keys)
-      await _seedTenantAndLocation();
+      // Seed default tenant and location (fallback for system operations)
+      await _seedDefaultTenantAndLocation();
       
       // Seed system user (required for stock movements)
       await _seedSystemUser();
       
       print('✅ Database initialization completed successfully!');
-      print('📝 Note: Only essential data seeded (tenant, location, user).');
-      print('📝 Users must add their own categories and units before creating products.');
+      print('📝 Note: Only essential data seeded (default tenant, location, user).');
+      print('📝 User-specific tenants will be created dynamically from auth session.');
     } catch (e) {
       print('❌ Database initialization failed: $e');
       rethrow;
     }
   }
 
-  /// Seed tenant and location (required for foreign keys)
-  Future<void> _seedTenantAndLocation() async {
+  /// Ensure tenant and location exist for a specific tenant ID
+  Future<void> ensureTenantAndLocationExist(String tenantId, String tenantName, String tenantEmail) async {
+    try {
+      final db = await _databaseHelper.database;
+      
+      // Check if tenant exists
+      final existingTenant = await db.query(
+        'tenants',
+        where: 'id = ?',
+        whereArgs: [tenantId],
+      );
+      
+      if (existingTenant.isEmpty) {
+        // Create tenant
+        final tenant = Tenant(
+          id: tenantId,
+          name: tenantName,
+          address: 'Default Address',
+          phone: '0000000000',
+          email: tenantEmail,
+          isActive: true,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deletedAt: null,
+          syncStatus: 'synced',
+          lastSyncedAt: DateTime.now(),
+        );
+        
+        await db.insert('tenants', tenant.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+        print('🏢 Created tenant: $tenantName ($tenantId)');
+      }
+      
+      // Check if primary location exists for this tenant
+      final existingLocation = await db.query(
+        'locations',
+        where: 'tenant_id = ? AND is_primary = 1',
+        whereArgs: [tenantId],
+      );
+      
+      if (existingLocation.isEmpty) {
+        // Create primary location
+        final locationId = '${tenantId}_location';
+        final location = Location(
+          id: locationId,
+          tenantId: tenantId,
+          name: 'Main Store',
+          type: 'store',
+          address: 'Main Store Address',
+          isPrimary: true,
+          isActive: true,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deletedAt: null,
+          syncStatus: 'synced',
+          lastSyncedAt: DateTime.now(),
+        );
+        
+        await db.insert('locations', location.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+        print('📍 Created primary location: Main Store ($locationId) for tenant $tenantId');
+      }
+      
+      // Check if system user exists for this tenant
+      final systemUserId = tenantId == 'default-tenant-id' ? 'system' : '${tenantId}_system';
+      final existingUser = await db.query(
+        'users',
+        where: 'id = ?',
+        whereArgs: [systemUserId],
+      );
+      
+      if (existingUser.isEmpty) {
+        // Create system user
+        final user = User(
+          id: systemUserId,
+          tenantId: tenantId,
+          username: 'system',
+          email: 'system@pos.com',
+          passwordHash: 'system_hash',
+          fullName: 'System User',
+          role: 'system',
+          permissions: ['all'],
+          isActive: true,
+          lastLoginAt: null,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deletedAt: null,
+          syncStatus: 'synced',
+          lastSyncedAt: DateTime.now(),
+        );
+        
+        await db.insert('users', user.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+        print('👤 Created system user: $systemUserId for tenant $tenantId');
+      }
+      
+    } catch (e) {
+      print('❌ Error ensuring tenant and location exist: $e');
+      rethrow;
+    }
+  }
+
+  /// Seed default tenant and location (fallback for system operations)
+  Future<void> _seedDefaultTenantAndLocation() async {
     final db = await _databaseHelper.database;
     
     // Check if tenant already exists

@@ -66,11 +66,7 @@ class UnitController extends GetxController {
       _units.add(createdUnit);
       _filteredUnits.add(createdUnit);
       
-      Get.snackbar(
-        'Success',
-        'Unit created successfully',
-        snackPosition: SnackPosition.TOP,
-      );
+   
     } catch (e) {
       print('❌ Error creating unit: $e');
       Get.snackbar(

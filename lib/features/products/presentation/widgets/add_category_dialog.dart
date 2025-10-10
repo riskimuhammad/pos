@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/core/controllers/category_controller.dart';
+import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:pos/core/data/database_seeder.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class AddCategoryDialog extends StatefulWidget {
@@ -28,6 +30,48 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  /// Get current tenant ID from auth session
+  String _getCurrentTenantId() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.id.isNotEmpty) {
+        return session.tenant.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant: $e');
+    }
+    return 'default-tenant-id'; // Fallback to default tenant
+  }
+
+  /// Get current tenant name from auth session
+  String _getCurrentTenantName() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.name.isNotEmpty) {
+        return session.tenant.name;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant name: $e');
+    }
+    return 'Default Tenant'; // Fallback to default tenant name
+  }
+
+  /// Get current tenant email from auth session
+  String _getCurrentTenantEmail() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.email != null && session.tenant.email!.isNotEmpty) {
+        return session.tenant.email!;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant email: $e');
+    }
+    return 'default@tenant.com'; // Fallback to default tenant email
   }
 
   @override
@@ -399,9 +443,21 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       try {
+        final tenantId = _getCurrentTenantId();
+        
+        // Ensure tenant and location exist before creating category
+        final databaseSeeder = Get.find<DatabaseSeeder>();
+        final tenantName = _getCurrentTenantName();
+        final tenantEmail = _getCurrentTenantEmail();
+        await databaseSeeder.ensureTenantAndLocationExist(
+          tenantId, 
+          tenantName, 
+          tenantEmail
+        );
+        
         final category = Category(
           id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
-          tenantId: 'default-tenant-id',
+          tenantId: tenantId,
           name: _nameController.text.trim(),
           isActive: _isActive,
           createdAt: DateTime.now(),
@@ -424,8 +480,9 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
         // Call the onSubmit callback with the category
         widget.onSubmit(category);
         
-        // Show success message
-      
+        // Close dialog
+        Get.back();
+        
       } catch (e) {
         print('❌ Error saving category: $e');
         Get.snackbar(

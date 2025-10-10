@@ -5,6 +5,8 @@ import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/core/api/product_api_service.dart';
 import 'package:pos/core/api/inventory_api_service.dart';
 import 'package:pos/core/network/network_info.dart';
+import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:get/get.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 
@@ -26,6 +28,20 @@ class ProductSyncService {
        _networkInfo = networkInfo,
        _productApiService = productApiService,
        _inventoryApiService = inventoryApiService;
+
+  /// Get current tenant ID from auth session
+  String _getCurrentTenantId() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.id.isNotEmpty) {
+        return session.tenant.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant: $e');
+    }
+    return 'default-tenant-id'; // Fallback to default tenant
+  }
 
   /// Sync products from server or use local data
   Future<List<Product>> syncProducts() async {
@@ -60,7 +76,7 @@ class ProductSyncService {
       
       // Real API call to get products
       final response = await _productApiService!.getProducts(
-        tenantId: 'default-tenant-id', // Will be replaced with user session when auth is implemented
+        tenantId: _getCurrentTenantId(),
         limit: 1000, // Get all products
       );
       

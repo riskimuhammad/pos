@@ -65,13 +65,22 @@ class CategoryController extends GetxController {
       final createdCategory = await _createCategoryUseCase(category);
       _categories.add(createdCategory);
       _filteredCategories.add(createdCategory);
-     
+      
+      Get.snackbar(
+        'Success',
+        'Category "${createdCategory.name}" created successfully',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.primaryColor,
+        colorText: Get.theme.colorScheme.onPrimary,
+      );
     } catch (e) {
       print('❌ Error creating category: $e');
       Get.snackbar(
         'Error',
         'Failed to create category: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
       );
     } finally {
       _isLoading.value = false;

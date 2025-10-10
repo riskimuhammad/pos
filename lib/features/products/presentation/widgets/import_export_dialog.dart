@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/core/services/csv_service.dart';
 import 'package:pos/features/products/presentation/controllers/product_controller.dart';
+import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -34,6 +35,20 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// Get current tenant ID from auth session
+  String _getCurrentTenantId() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.id.isNotEmpty) {
+        return session.tenant.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant: $e');
+    }
+    return 'default-tenant-id'; // Fallback to default tenant
   }
 
   @override
@@ -357,7 +372,7 @@ class _ImportExportDialogState extends State<ImportExportDialog> with TickerProv
       
       if (csvData != null && csvData.isNotEmpty) {
         // Convert CSV data to Product objects
-        final products = _csvService.csvDataToProducts(csvData, 'default-tenant-id');
+        final products = _csvService.csvDataToProducts(csvData, _getCurrentTenantId());
         
         if (products.isNotEmpty) {
           // Show confirmation dialog

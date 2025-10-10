@@ -10,6 +10,8 @@ import 'package:pos/features/products/presentation/widgets/category_search_dialo
 import 'package:pos/features/products/presentation/widgets/unit_search_dialog.dart';
 import 'package:pos/core/controllers/unit_controller.dart';
 import 'package:pos/core/controllers/category_controller.dart';
+import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:pos/core/data/database_seeder.dart';
 import 'package:pos/core/storage/local_datasource.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
@@ -72,6 +74,48 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     _initializeForm();
     _loadCategories();
     _loadUnits();
+  }
+
+  /// Get current tenant ID from auth session
+  String _getCurrentTenantId() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.id.isNotEmpty) {
+        return session.tenant.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant: $e');
+    }
+    return 'default-tenant-id'; // Fallback to default tenant
+  }
+
+  /// Get current tenant name from auth session
+  String _getCurrentTenantName() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.name.isNotEmpty) {
+        return session.tenant.name;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant name: $e');
+    }
+    return 'Default Tenant'; // Fallback to default tenant name
+  }
+
+  /// Get current tenant email from auth session
+  String _getCurrentTenantEmail() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.email != null && session.tenant.email!.isNotEmpty) {
+        return session.tenant.email!;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant email: $e');
+    }
+    return 'default@tenant.com'; // Fallback to default tenant email
   }
 _setupInit(){
   if (!Get.isRegistered<UnitController>()) {
@@ -169,7 +213,7 @@ _setupInit(){
         print('⚠️ CategoryController not registered, loading from service directly');
         // Fallback: load directly from datasource
         final localDataSource = Get.find<LocalDataSource>();
-        _categories = await localDataSource.getCategoriesByTenant('default-tenant-id');
+        _categories = await localDataSource.getCategoriesByTenant(_getCurrentTenantId());
       }
     } catch (e) {
       print('❌ Failed to load categories: $e');
@@ -187,7 +231,7 @@ _setupInit(){
         print('⚠️ UnitController not registered, loading from service directly');
         // Fallback: load directly from datasource
         final localDataSource = Get.find<LocalDataSource>();
-        await localDataSource.getUnitsByTenant('default-tenant-id');
+        await localDataSource.getUnitsByTenant(_getCurrentTenantId());
       }
       // No default seeding - users must add their own units
     } catch (e) {
@@ -1408,7 +1452,7 @@ _setupInit(){
     );
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     
     // Additional validation for expiry date
     if (_isExpirable && _expiryDate == null) {
@@ -1431,10 +1475,22 @@ _setupInit(){
       Product product;
       
       if (_isNewProduct) {
+        final tenantId = _getCurrentTenantId();
+        
+        // Ensure tenant and location exist before creating product
+        final databaseSeeder = Get.find<DatabaseSeeder>();
+        final tenantName = _getCurrentTenantName();
+        final tenantEmail = _getCurrentTenantEmail();
+        await databaseSeeder.ensureTenantAndLocationExist(
+          tenantId, 
+          tenantName, 
+          tenantEmail
+        );
+        
         // Create new product
         product = Product(
           id: 'prod_${DateTime.now().millisecondsSinceEpoch}',
-          tenantId: 'default-tenant-id',
+          tenantId: tenantId,
           sku: _skuController.text.trim(),
           name: _nameController.text.trim(),
           categoryId: _selectedCategoryId,

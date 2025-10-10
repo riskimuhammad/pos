@@ -262,16 +262,7 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
                           color: Colors.grey[600],
                         ),
                       ),
-                      SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => _showAddProductDialog(),
-                        icon: Icon(Icons.add),
-                        label: Text('Tambah Produk'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
+                     
                     ],
                   ),
                 );

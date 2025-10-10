@@ -522,8 +522,6 @@ class _UnitSearchDialogState extends State<UnitSearchDialog> {
       // Select the new unit
       widget.onUnitSelected(result);
       
-      // Close the unit search dialog
-      Get.back();
     }
   }
 }

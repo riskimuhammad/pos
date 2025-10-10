@@ -4,6 +4,8 @@ import 'package:pos/core/api/category_api_service.dart';
 import 'package:pos/core/repositories/category_repository.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/core/constants/app_constants.dart';
+import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:get/get.dart';
 
 class CategoryRepositoryImpl implements CategoryRepository {
   final LocalDataSource _localDataSource;
@@ -18,11 +20,26 @@ class CategoryRepositoryImpl implements CategoryRepository {
        _categoryApiService = categoryApiService,
        _networkInfo = networkInfo;
 
+  /// Get current tenant ID from auth session
+  String _getCurrentTenantId() {
+    try {
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null && session.tenant.id.isNotEmpty) {
+        return session.tenant.id;
+      }
+    } catch (e) {
+      print('⚠️ AuthController not found, using default tenant: $e');
+    }
+    return 'default-tenant-id'; // Fallback to default tenant
+  }
+
   @override
   Future<List<Category>> getCategories() async {
     try {
+      final tenantId = _getCurrentTenantId();
       // Always get from local first
-      final localCategories = await _localDataSource.getCategoriesByTenant(AppConstants.defaultTenantId);
+      final localCategories = await _localDataSource.getCategoriesByTenant(tenantId);
       
       // If API is enabled and online, sync with server
       if (AppConstants.kEnableRemoteApi && 
@@ -31,7 +48,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
         try {
           await syncCategories();
           // Return updated local categories after sync
-          return await _localDataSource.getCategoriesByTenant(AppConstants.defaultTenantId);
+          return await _localDataSource.getCategoriesByTenant(tenantId);
         } catch (e) {
           print('⚠️ Failed to sync categories, using local data: $e');
         }
@@ -146,8 +163,9 @@ class CategoryRepositoryImpl implements CategoryRepository {
   @override
   Future<List<Category>> searchCategories(String query) async {
     try {
+      final tenantId = _getCurrentTenantId();
       // For now, use local search - can be enhanced with API search later
-      final allCategories = await _localDataSource.getCategoriesByTenant(AppConstants.defaultTenantId);
+      final allCategories = await _localDataSource.getCategoriesByTenant(tenantId);
       return allCategories.where((category) => 
         category.name.toLowerCase().contains(query.toLowerCase())
       ).toList();
@@ -160,7 +178,8 @@ class CategoryRepositoryImpl implements CategoryRepository {
   @override
   Future<bool> categoryNameExists(String name, {String? excludeId}) async {
     try {
-      final categories = await _localDataSource.getCategoriesByTenant(AppConstants.defaultTenantId);
+      final tenantId = _getCurrentTenantId();
+      final categories = await _localDataSource.getCategoriesByTenant(tenantId);
       return categories.any((category) => 
         category.name.toLowerCase() == name.toLowerCase() && 
         category.id != excludeId
@@ -179,11 +198,12 @@ class CategoryRepositoryImpl implements CategoryRepository {
     }
 
     try {
+      final tenantId = _getCurrentTenantId();
       // Get categories from server
       final serverCategories = await getCategoriesFromServer();
       
       // Get local categories
-      final localCategories = await _localDataSource.getCategoriesByTenant(AppConstants.defaultTenantId);
+      final localCategories = await _localDataSource.getCategoriesByTenant(tenantId);
       
       // Sync logic: update local with server data
       for (final serverCategory in serverCategories) {
@@ -221,8 +241,9 @@ class CategoryRepositoryImpl implements CategoryRepository {
     }
     
     try {
+      final tenantId = _getCurrentTenantId();
       return await _categoryApiService.getCategories(
-        tenantId: AppConstants.defaultTenantId,
+        tenantId: tenantId,
       );
     } catch (e) {
       print('❌ Error getting categories from server: $e');

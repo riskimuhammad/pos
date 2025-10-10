@@ -83,15 +83,7 @@ class _AddUnitDialogState extends State<AddUnitDialog> {
         // Call the onSubmit callback with the unit
         widget.onSubmit(unit);
         
-        // Show success message
-        Get.snackbar(
-          'Success',
-          'Satuan "${unit.name}" berhasil ditambahkan',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: AppTheme.successColor,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-        );
+      
       } catch (e) {
         Get.snackbar(
           'Error',

@@ -610,8 +610,6 @@ class _CategorySearchDialogState extends State<CategorySearchDialog> {
       // Select the new category
       widget.onCategorySelected(result);
       
-      // Close the category search dialog
-      Get.back();
     }
   }
 }
