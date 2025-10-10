@@ -167,7 +167,7 @@ class InventoryController extends GetxController {
     try {
       isLoading.value = true;
       
-      // Ensure tenant and location exist before creating stock movement
+      // Ensure tenant, location, and user exist before creating stock movement
       final databaseSeeder = Get.find<DatabaseSeeder>();
       final tenantName = _getCurrentTenantName;
       final tenantEmail = _getCurrentTenantEmail;
@@ -176,6 +176,21 @@ class InventoryController extends GetxController {
         tenantName, 
         tenantEmail
       );
+      
+      // Ensure current user exists in database
+      final currentUserId = _currentUserId;
+      final authController = Get.find<AuthController>();
+      final session = authController.currentSession.value;
+      if (session != null) {
+        await databaseSeeder.ensureUserExists(
+          currentUserId,
+          _currentTenantId,
+          session.user.username,
+          session.user.email ?? 'user@tenant.com',
+          session.user.fullName ?? session.user.username,
+          session.user.role,
+        );
+      }
       
       // Get current stock
       final currentStock = await _getCurrentStock(productId, locationId);

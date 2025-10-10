@@ -126,6 +126,64 @@ class DatabaseSeeder {
     }
   }
 
+  /// Ensure user exists in database (for session users)
+  Future<void> ensureUserExists(String userId, String tenantId, String username, String email, String fullName, String role) async {
+    try {
+      final db = await _databaseHelper.database;
+      
+      // Check if user exists
+      final existingUser = await db.query(
+        'users',
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+      
+      if (existingUser.isEmpty) {
+        // Create user from session data
+        final user = User(
+          id: userId,
+          tenantId: tenantId,
+          username: username,
+          email: email,
+          passwordHash: 'session_user_hash',
+          fullName: fullName,
+          role: role,
+          permissions: _getPermissionsForRole(role),
+          isActive: true,
+          lastLoginAt: DateTime.now(),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deletedAt: null,
+          syncStatus: 'synced',
+          lastSyncedAt: DateTime.now(),
+        );
+        
+        await db.insert('users', user.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+        print('👤 Created user from session: $fullName ($userId) for tenant $tenantId');
+      }
+    } catch (e) {
+      print('❌ Error ensuring user exists: $e');
+      rethrow;
+    }
+  }
+
+  /// Get permissions based on role
+  List<String> _getPermissionsForRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'owner':
+      case 'admin':
+        return ['all'];
+      case 'manager':
+        return ['pos', 'products', 'inventory', 'reports', 'users'];
+      case 'cashier':
+        return ['pos', 'products', 'inventory'];
+      case 'staff':
+        return ['products', 'inventory'];
+      default:
+        return ['products'];
+    }
+  }
+
   /// Seed default tenant and location (fallback for system operations)
   Future<void> _seedDefaultTenantAndLocation() async {
     final db = await _databaseHelper.database;
