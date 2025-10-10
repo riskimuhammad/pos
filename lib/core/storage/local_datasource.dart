@@ -658,40 +658,18 @@ class LocalDataSourceImpl implements LocalDataSource {
   Future<int> getCurrentStock(String productId) async {
     final db = await _database;
     
-    // Get initial stock from inventory table
+    // Use inventory quantity directly for consistency with total value calculation
     final inventoryResult = await db.rawQuery('''
       SELECT SUM(quantity) as total_inventory
       FROM inventory 
       WHERE product_id = ?
     ''', [productId]);
     
-    final initialStock = (inventoryResult.first['total_inventory'] as int?) ?? 0;
+    final inventoryQuantity = (inventoryResult.first['total_inventory'] as int?) ?? 0;
     
-    // Get stock movements (purchases + sales + adjustments)
-    final movementsResult = await db.rawQuery('''
-      SELECT 
-        SUM(CASE WHEN type = 'purchase' THEN quantity ELSE 0 END) as total_purchases,
-        SUM(CASE WHEN type = 'sale' THEN quantity ELSE 0 END) as total_sales,
-        SUM(CASE WHEN type = 'adjustment' THEN quantity ELSE 0 END) as total_adjustments
-      FROM stock_movements 
-      WHERE product_id = ?
-    ''', [productId]);
+    print('📊 Inventory quantity for $productId: $inventoryQuantity');
     
-    final totalPurchases = (movementsResult.first['total_purchases'] as int?) ?? 0;
-    final totalSales = (movementsResult.first['total_sales'] as int?) ?? 0;
-    final totalAdjustments = (movementsResult.first['total_adjustments'] as int?) ?? 0;
-    
-    // Calculate current stock: initial + purchases - sales + adjustments
-    final currentStock = initialStock + totalPurchases - totalSales + totalAdjustments;
-    
-    print('📊 Stock calculation for $productId:');
-    print('  Initial: $initialStock');
-    print('  Purchases: +$totalPurchases');
-    print('  Sales: -$totalSales');
-    print('  Adjustments: +$totalAdjustments');
-    print('  Current: $currentStock');
-    
-    return currentStock;
+    return inventoryQuantity;
   }
 
   @override

@@ -4,6 +4,9 @@ import 'package:pos/features/products/domain/usecases/get_products.dart';
 import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/update_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
+import 'package:pos/features/inventory/domain/usecases/get_inventory.dart';
+import 'package:pos/features/inventory/domain/repositories/inventory_repository.dart';
+import 'package:pos/features/inventory/data/repositories/inventory_repository_impl.dart';
 import 'package:pos/features/products/data/repositories/product_repository_impl.dart';
 import 'package:pos/core/sync/product_sync_service.dart';
 import 'package:pos/core/data/database_seeder.dart';
@@ -33,6 +36,12 @@ class ProductsBinding extends Bindings {
       networkInfo: Get.find<NetworkInfo>(),
       localDataSource: Get.find<LocalDataSource>(),
     ));
+    if (!Get.isRegistered<InventoryRepository>()) {
+      Get.lazyPut<InventoryRepository>(() => InventoryRepositoryImpl(
+        networkInfo: Get.find<NetworkInfo>(),
+        localDataSource: Get.find<LocalDataSource>(),
+      ));
+    }
     if (!Get.isRegistered<GetProducts>()) {
       Get.lazyPut<GetProducts>(() => GetProducts(Get.find<ProductRepository>()));
     }
@@ -44,6 +53,9 @@ class ProductsBinding extends Bindings {
     }
     if (!Get.isRegistered<SearchProducts>()) {
       Get.lazyPut<SearchProducts>(() => SearchProducts(Get.find<ProductRepository>()));
+    }
+    if (!Get.isRegistered<GetInventory>()) {
+      Get.lazyPut<GetInventory>(() => GetInventory(Get.find<InventoryRepository>()));
     }
             if (!Get.isRegistered<ProductSyncService>()) {
               Get.lazyPut<ProductSyncService>(() => ProductSyncService(
@@ -133,6 +145,7 @@ class ProductsBinding extends Bindings {
       createProduct: Get.find<CreateProduct>(),
       updateProduct: Get.find<UpdateProduct>(),
       searchProducts: Get.find<SearchProducts>(),
+      getInventory: Get.find<GetInventory>(),
       productSyncService: Get.find<ProductSyncService>(),
       databaseSeeder: Get.find<DatabaseSeeder>(),
       localDataSource: Get.find<LocalDataSource>(),

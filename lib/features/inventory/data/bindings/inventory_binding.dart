@@ -139,6 +139,7 @@ class InventoryBinding extends Bindings {
       ));
     Get.lazyPut<ProductController>(
       () => ProductController(
+        getInventory: Get.find<GetInventory>(),
         createProduct: Get.find<CreateProduct>(),
         getProducts: Get.find<GetProducts>(),
         searchProducts: Get.find<SearchProducts>(),

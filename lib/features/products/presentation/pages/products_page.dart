@@ -130,39 +130,61 @@ class _ProductsPageState extends State<ProductsPage> with TickerProviderStateMix
           Container(
             color: Colors.white,
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Obx(() => Row(
+            child: Obx(() => Column(
               children: [
-                Expanded(
-                  child: _buildStatCard(
-                    AppLocalizations.of(context)!.products,
-                    '${_controller.products.length}',
-                    Icons.inventory_2,
-                    AppTheme.primaryColor,
-                  ),
+                // First row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Obx(() => _buildStatCard(
+                        AppLocalizations.of(context)!.products,
+                        '${_controller.products.length}',
+                        Icons.inventory_2,
+                        AppTheme.primaryColor,
+                      )),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Obx(() {
+                        final activeCount = _controller.products.where((p) => p.isActive).length;
+                        return _buildStatCard(
+                          'Aktif',
+                          '$activeCount',
+                          Icons.check_circle,
+                          AppTheme.successColor,
+                        );
+                      }),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Aktif',
-                    '${_controller.products.where((p) => p.isActive).length}',
-                    Icons.check_circle,
-                    AppTheme.successColor,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: FutureBuilder<List<Product>>(
-                    future: _controller.getLowStockProducts(),
-                    builder: (context, snapshot) {
-                      final lowStockCount = snapshot.hasData ? snapshot.data!.length : 0;
-                      return _buildStatCard(
-                        AppLocalizations.of(context)!.lowStock,
-                        '$lowStockCount',
-                        Icons.warning,
-                        AppTheme.warningColor,
-                      );
-                    },
-                  ),
+                SizedBox(height: 12),
+                // Second row
+                Row(
+                  children: [
+                    Expanded(
+                      child: FutureBuilder<List<Product>>(
+                        future: _controller.getLowStockProducts(),
+                        builder: (context, snapshot) {
+                          final lowStockCount = snapshot.hasData ? snapshot.data!.length : 0;
+                          return _buildStatCard(
+                            AppLocalizations.of(context)!.lowStock,
+                            '$lowStockCount',
+                            Icons.warning,
+                            AppTheme.warningColor,
+                          );
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Obx(() => _buildStatCard(
+                        'Total Nilai',
+                        'Rp ${_controller.totalProductValue.value.toStringAsFixed(0)}',
+                        Icons.attach_money,
+                        AppTheme.successColor,
+                      )),
+                    ),
+                  ],
                 ),
               ],
             )),

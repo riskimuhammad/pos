@@ -3,7 +3,7 @@ import 'package:pos/core/theme/app_theme.dart';
 import 'package:pos/core/localization/language_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:get/get.dart';
-import 'package:pos/features/products/presentation/controllers/product_controller.dart';
+import 'package:pos/core/storage/local_datasource.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -237,8 +237,10 @@ class ProductCard extends StatelessWidget {
 
   Future<int> _getCurrentStock() async {
     try {
-      final productController = Get.find<ProductController>();
-      return await productController.getCurrentStock(product.id);
+      final localDataSource = Get.find<LocalDataSource>();
+      final currentStock = await localDataSource.getCurrentStock(product.id);
+      print('📊 ProductCard: ${product.name} current stock: $currentStock');
+      return currentStock;
     } catch (e) {
       print('❌ Error getting current stock in ProductCard: $e');
       return 0;

@@ -5,6 +5,7 @@ import 'package:pos/features/products/domain/usecases/get_products.dart';
 import 'package:pos/features/products/domain/usecases/create_product.dart';
 import 'package:pos/features/products/domain/usecases/update_product.dart';
 import 'package:pos/features/products/domain/usecases/search_products.dart';
+import 'package:pos/features/inventory/domain/usecases/get_inventory.dart';
 import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:pos/shared/models/entities/entities.dart';
 import 'package:pos/core/sync/product_sync_service.dart';
@@ -17,6 +18,7 @@ class ProductController extends GetxController {
   final CreateProduct createProduct;
   final UpdateProduct updateProduct;
   final SearchProducts searchProducts;
+  final GetInventory getInventory;
   final ProductSyncService productSyncService;
   final DatabaseSeeder databaseSeeder;
   final LocalDataSource localDataSource;
@@ -26,6 +28,7 @@ class ProductController extends GetxController {
     required this.createProduct,
     required this.updateProduct,
     required this.searchProducts,
+    required this.getInventory,
     required this.productSyncService,
     required this.databaseSeeder,
     required this.localDataSource,
@@ -39,6 +42,7 @@ class ProductController extends GetxController {
   final RxString searchQuery = ''.obs;
   final RxString selectedCategoryId = ''.obs;
   final RxString errorMessage = ''.obs;
+  final RxDouble totalProductValue = 0.0.obs;
 
   /// Get current tenant ID from auth session
   String get _currentTenantId {
@@ -79,6 +83,7 @@ class ProductController extends GetxController {
       final productList = await productSyncService.syncProducts();
       products.value = productList;
       _applyFilters();
+      _calculateTotalProductValue();
       
     } catch (e) {
       errorMessage.value = 'Failed to load products: $e';
@@ -107,6 +112,7 @@ class ProductController extends GetxController {
           
           products.add(createdProduct);
           _applyFilters();
+          _calculateTotalProductValue();
           
           // Sync to server if enabled
           productSyncService.syncProductToServer(createdProduct);
@@ -135,6 +141,7 @@ class ProductController extends GetxController {
           if (index != -1) {
             products[index] = updatedProduct;
             _applyFilters();
+            _calculateTotalProductValue();
           }
           
           // Sync to server if enabled
@@ -416,6 +423,7 @@ class ProductController extends GetxController {
       // Remove from local list
       products.removeWhere((product) => product.id == productId);
       filteredProducts.removeWhere((product) => product.id == productId);
+      _calculateTotalProductValue();
       
       // Sync to server if enabled
       productSyncService.deleteProductFromServer(productId);
@@ -568,6 +576,49 @@ class ProductController extends GetxController {
       Get.snackbar('Success', 'Barcode updated for ${product.name}');
     } catch (e) {
       Get.snackbar('Error', 'Failed to update barcode: $e');
+    }
+  }
+
+  /// Calculate total product value using cost price (modal) and inventory quantity
+  /// This matches the calculation method used in inventory menu exactly
+  Future<void> _calculateTotalProductValue() async {
+    try {
+      double totalValue = 0.0;
+      
+      // Use the same method as inventory controller to get inventory data
+      final result = await getInventory(GetInventoryParams(
+        tenantId: _currentTenantId,
+        locationId: null, // Get all locations
+      ));
+      
+      result.fold(
+        (failure) {
+          print('❌ Failed to get inventory for total calculation: $failure');
+          totalProductValue.value = 0.0;
+        },
+        (inventories) async {
+          for (final inventory in inventories) {
+            try {
+              // Get product details
+              final product = await localDataSource.getProduct(inventory.productId);
+              if (product != null) {
+                // Use cost price (modal) for product valuation - same as inventory menu
+                final itemValue = inventory.quantity * product.priceBuy;
+                totalValue += itemValue;
+                print('📊 ${product.name}: ${inventory.quantity} x ${product.priceBuy} = $itemValue');
+              }
+            } catch (e) {
+              print('❌ Error getting product price for ${inventory.productId}: $e');
+            }
+          }
+          
+          totalProductValue.value = totalValue;
+          print('💰 Total Product Value (Modal): ${totalValue.toStringAsFixed(2)}');
+        },
+      );
+    } catch (e) {
+      print('❌ Error calculating total product value: $e');
+      totalProductValue.value = 0.0;
     }
   }
 }
