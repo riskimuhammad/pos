@@ -177,14 +177,21 @@ class InventoryRepositoryImpl extends BaseRepository implements InventoryReposit
         locationId: locationId,
       );
       
-      return inventories.fold(
-        (failure) => Left(failure),
-        (inventoryList) {
+      return await inventories.fold(
+        (failure) async => Left(failure),
+        (inventoryList) async {
           double totalValue = 0.0;
           for (final inventory in inventoryList) {
-            // Get product price from product data
-            // This would need to be implemented with proper product lookup
-            totalValue += inventory.quantity * 0.0; // Placeholder
+            try {
+              // Get product price from product data
+              final product = await localDataSource.getProduct(inventory.productId);
+              if (product != null) {
+                // Use cost price (modal) for inventory valuation
+                totalValue += inventory.quantity * product.priceBuy;
+              }
+            } catch (e) {
+              print('❌ Error getting product price for ${inventory.productId}: $e');
+            }
           }
           return Right(totalValue);
         },

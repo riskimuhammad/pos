@@ -37,6 +37,16 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
         getLowStockProducts: Get.find(),
       ));
     }
+    
+    // Load inventory data
+    _controller.loadInventory();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when returning to this page
+    _controller.loadInventory();
   }
 
   @override
@@ -60,6 +70,11 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.store_mall_directory, color: Colors.white),
+            tooltip: AppLocalizations.of(context)!.manageLocationsTooltip,
+            onPressed: () => Get.toNamed('/locations'),
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list, color: Colors.white),
             onPressed: () => _showFilterDialog(),
@@ -278,7 +293,13 @@ class _InventoryPageState extends State<InventoryPage> with TickerProviderStateM
 
   Widget _buildLowStockList() {
     return Obx(() {
-      final lowStockItems = _controller.inventoryItems.where((item) => item.isLowStock).toList();
+      final lowStockItems = _controller.inventoryItems.where((item) {
+        // Check if item is out of stock first
+        if (item.isOutOfStock) return false;
+        
+        // Use simple threshold for now
+        return item.availableQuantity <= 5;
+      }).toList();
 
       if (lowStockItems.isEmpty) {
         return Center(

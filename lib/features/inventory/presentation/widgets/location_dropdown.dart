@@ -33,6 +33,16 @@ class _LocationDropdownState extends State<LocationDropdown> {
     _loadLocations();
   }
 
+  @override
+  void didUpdateWidget(LocationDropdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedLocationId != widget.selectedLocationId) {
+      _selectedLocationId = widget.selectedLocationId;
+    }
+    // Refresh data when widget updates
+    _loadLocations();
+  }
+
   Future<void> _loadLocations() async {
     setState(() {
       _isLoading = true;
@@ -41,6 +51,8 @@ class _LocationDropdownState extends State<LocationDropdown> {
     try {
       if (Get.isRegistered<InventoryController>()) {
         final inventoryController = Get.find<InventoryController>();
+        // Refresh locations data
+        await inventoryController.loadLocations();
         _locations = inventoryController.locations;
       }
     } catch (e) {
@@ -90,6 +102,22 @@ class _LocationDropdownState extends State<LocationDropdown> {
             ),
             hint: Text(_isLoading ? 'Loading locations...' : 'Select Location'),
             isExpanded: true,
+            // Allow taller menu items (multi-line) and cap popup height
+            itemHeight: null,
+            menuMaxHeight: 400,
+            // Keep selected widget compact (single line)
+            selectedItemBuilder: (ctx) {
+              return _locations.map((location) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    location.name,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                );
+              }).toList();
+            },
             items: _locations.map((location) {
               return DropdownMenuItem<String>(
                 value: location.id,
@@ -99,10 +127,14 @@ class _LocationDropdownState extends State<LocationDropdown> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          location.name,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis,
+                        Expanded(
+                          child: Text(
+                            location.name,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
+                            maxLines: 3,
+                          ),
                         ),
                         if (location.isPrimary) ...[
                           const SizedBox(width: 8),
@@ -131,6 +163,7 @@ class _LocationDropdownState extends State<LocationDropdown> {
                         color: Colors.grey[600],
                       ),
                       overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
                   ],
                 ),

@@ -5,6 +5,8 @@ import 'package:pos/shared/models/entities/entities.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:pos/features/inventory/presentation/widgets/product_dropdown.dart';
 import 'package:pos/features/inventory/presentation/widgets/location_dropdown.dart';
+import 'package:pos/features/products/presentation/controllers/product_controller.dart';
+import 'package:pos/features/inventory/presentation/controllers/inventory_controller.dart';
 
 class StockAdjustmentDialog extends StatefulWidget {
   final Inventory? inventory; // If provided, pre-fill the form
@@ -41,6 +43,43 @@ class _StockAdjustmentDialogState extends State<StockAdjustmentDialog> {
       _currentStock = widget.inventory!.quantity;
       _physicalCountController.text = _currentStock.toString();
       _calculateAdjustment();
+    }
+    // Refresh data when dialog opens
+    _refreshData();
+  }
+
+  Future<void> _refreshData() async {
+    try {
+      // Use Get.find to trigger binding and get ProductController
+      final productController = Get.find<ProductController>();
+      await productController.loadProducts();
+      
+      // Refresh locations
+      if (Get.isRegistered<InventoryController>()) {
+        final inventoryController = Get.find<InventoryController>();
+        await inventoryController.loadLocations();
+      }
+    } catch (e) {
+      print('❌ Error refreshing data: $e');
+      // Don't show snackbar during build, just log the error
+      // The error will be handled by the dropdown widgets themselves
+    }
+  }
+
+  Future<void> _updateCurrentStock(String productId, String locationId) async {
+    try {
+      if (Get.isRegistered<InventoryController>()) {
+        final inventoryController = Get.find<InventoryController>();
+        final currentStock = await inventoryController.getCurrentStock(productId, locationId);
+        setState(() {
+          _currentStock = currentStock;
+          _physicalCountController.text = currentStock.toString();
+        });
+        _calculateAdjustment();
+        print('📊 Updated current stock: $currentStock for product $productId at location $locationId');
+      }
+    } catch (e) {
+      print('❌ Error updating current stock: $e');
     }
   }
 
@@ -98,6 +137,15 @@ class _StockAdjustmentDialogState extends State<StockAdjustmentDialog> {
                         ),
                       ),
                       IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed: () async {
+                          // Force refresh of dropdown data
+                          await _refreshData();
+                          setState(() {});
+                        },
+                        tooltip: 'Refresh Data',
+                      ),
+                      IconButton(
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close),
                       ),
@@ -119,10 +167,14 @@ class _StockAdjustmentDialogState extends State<StockAdjustmentDialog> {
                     const SizedBox(height: 8),
                     ProductDropdown(
                       selectedProductId: _selectedProductId,
-                    onProductSelected: (productId) {
+                    onProductSelected: (productId) async {
                       setState(() {
                         _selectedProductId = productId;
                       });
+                      // Update current stock when product is selected
+                      if (productId != null && _selectedLocationId != null) {
+                        await _updateCurrentStock(productId, _selectedLocationId!);
+                      }
                     },
                     ),
                     const SizedBox(height: 16),
@@ -141,10 +193,14 @@ class _StockAdjustmentDialogState extends State<StockAdjustmentDialog> {
                     const SizedBox(height: 8),
                     LocationDropdown(
                       selectedLocationId: _selectedLocationId,
-                    onLocationSelected: (locationId) {
+                    onLocationSelected: (locationId) async {
                       setState(() {
                         _selectedLocationId = locationId;
                       });
+                      // Update current stock when location is selected
+                      if (locationId != null && _selectedProductId != null) {
+                        await _updateCurrentStock(_selectedProductId!, locationId);
+                      }
                     },
                     ),
                     const SizedBox(height: 16),

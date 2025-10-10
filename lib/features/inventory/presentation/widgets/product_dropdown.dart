@@ -34,18 +34,29 @@ class _ProductDropdownState extends State<ProductDropdown> {
     _loadProducts();
   }
 
+  @override
+  void didUpdateWidget(ProductDropdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedProductId != widget.selectedProductId) {
+      _selectedProductId = widget.selectedProductId;
+    }
+    // Refresh data when widget updates
+    _loadProducts();
+  }
+
   Future<void> _loadProducts() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      if (Get.isRegistered<ProductController>()) {
-        final productController = Get.find<ProductController>();
-        _products = productController.products;
-      }
+      // Use Get.find to trigger binding and get ProductController
+      final productController = Get.find<ProductController>();
+      // Refresh products data
+      await productController.loadProducts();
+      _products = productController.products;
     } catch (e) {
-      print('Error loading products: $e');
+      print('❌ Error loading products: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -101,6 +112,20 @@ class _ProductDropdownState extends State<ProductDropdown> {
             ),
             hint: Text(_isLoading ? 'Loading products...' : 'Select Product'),
             isExpanded: true,
+            itemHeight: null,
+            menuMaxHeight: 400,
+            selectedItemBuilder: (ctx) {
+              return _filteredProducts.map((product) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    product.name,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                );
+              }).toList();
+            },
             items: _filteredProducts.map((product) {
               return DropdownMenuItem<String>(
                 value: product.id,
@@ -112,6 +137,7 @@ class _ProductDropdownState extends State<ProductDropdown> {
                       product.name,
                       style: const TextStyle(fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,
+                      maxLines: 3,
                     ),
                     Text(
                       'SKU: ${product.sku}',
@@ -120,6 +146,7 @@ class _ProductDropdownState extends State<ProductDropdown> {
                         color: Colors.grey[600],
                       ),
                       overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
                   ],
                 ),

@@ -9,6 +9,7 @@ import 'package:pos/features/inventory/domain/usecases/get_locations.dart';
 import 'package:pos/features/inventory/domain/usecases/get_low_stock_products.dart';
 import 'package:pos/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:pos/core/data/database_seeder.dart';
+import 'package:pos/core/storage/local_datasource.dart';
 import 'package:pos/core/theme/app_theme.dart';
 
 class InventoryController extends GetxController {
@@ -33,6 +34,7 @@ class InventoryController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString selectedLocationId = ''.obs;
   final RxString searchQuery = ''.obs;
+  final RxDouble totalInventoryValue = 0.0.obs;
   final RxString errorMessage = ''.obs;
 
   /// Get current user ID from auth session
@@ -94,9 +96,21 @@ class InventoryController extends GetxController {
   // Getters
   List<Inventory> get filteredInventory => _applyFilters();
   int get totalProducts => inventoryItems.length;
-  int get lowStockCount => inventoryItems.where((item) => item.isLowStock).length;
+  int get lowStockCount => _getLowStockItems().length;
   int get outOfStockCount => inventoryItems.where((item) => item.isOutOfStock).length;
-  double get totalInventoryValue => _calculateTotalValue();
+  double get totalInventoryValueAmount => totalInventoryValue.value;
+  
+  // Get low stock items with proper logic
+  List<Inventory> _getLowStockItems() {
+    return inventoryItems.where((item) {
+      // Check if item is out of stock first
+      if (item.isOutOfStock) return false;
+      
+      // For now, use simple threshold until we implement proper product lookup
+      // TODO: Implement proper low stock check using product.reorderPoint
+      return item.availableQuantity <= 5;
+    }).toList();
+  }
 
   @override
   void onInit() {
@@ -117,7 +131,11 @@ class InventoryController extends GetxController {
       
       result.fold(
         (failure) => _handleFailure(failure),
-        (inventory) => inventoryItems.assignAll(inventory),
+        (inventory) {
+          inventoryItems.assignAll(inventory);
+          // Calculate total inventory value after loading inventory
+          _calculateTotalInventoryValue();
+        },
       );
     } catch (e) {
       errorMessage.value = 'Failed to load inventory: $e';
@@ -193,7 +211,7 @@ class InventoryController extends GetxController {
       }
       
       // Get current stock
-      final currentStock = await _getCurrentStock(productId, locationId);
+      final currentStock = await getCurrentStock(productId, locationId);
       final adjustment = physicalCount - currentStock;
       
       // Create stock movement
@@ -297,6 +315,7 @@ class InventoryController extends GetxController {
   void setLocationFilter(String? locationId) {
     selectedLocationId.value = locationId ?? '';
     _applyFilters();
+    _calculateTotalInventoryValue();
   }
 
 
@@ -354,6 +373,7 @@ class InventoryController extends GetxController {
   void setSearchQuery(String query) {
     searchQuery.value = query;
     _applyFilters();
+    _calculateTotalInventoryValue();
   }
 
   List<Inventory> _applyFilters() {
@@ -374,33 +394,66 @@ class InventoryController extends GetxController {
     return filtered;
   }
 
-  double _calculateTotalValue() {
-    // This would need to be implemented with proper product price lookup
-    return inventoryItems.fold(0.0, (sum, item) => sum + (item.quantity * 0.0));
+  /// Calculate total inventory value using cost price (modal)
+  /// This represents the total investment in inventory
+  Future<void> _calculateTotalInventoryValue() async {
+    try {
+      double totalValue = 0.0;
+      final localDataSource = Get.find<LocalDataSource>();
+      
+      for (final item in inventoryItems) {
+        try {
+          final product = await localDataSource.getProduct(item.productId);
+          if (product != null) {
+            // Use cost price (modal) for inventory valuation
+            final itemValue = item.quantity * product.priceBuy;
+            totalValue += itemValue;
+            print('📊 ${product.name}: ${item.quantity} x ${product.priceBuy} = $itemValue');
+          }
+        } catch (e) {
+          print('❌ Error getting product price for ${item.productId}: $e');
+        }
+      }
+      
+      totalInventoryValue.value = totalValue;
+      print('💰 Total Inventory Value (Modal): ${totalValue.toStringAsFixed(2)}');
+    } catch (e) {
+      print('❌ Error calculating total inventory value: $e');
+      totalInventoryValue.value = 0.0;
+    }
   }
 
-  Future<int> _getCurrentStock(String productId, String locationId) async {
+  Future<int> getCurrentStock(String productId, String locationId) async {
     try {
+      print('🔍 Getting current stock for product: $productId, location: $locationId');
       final result = await getInventory(GetInventoryParams(
         tenantId: _currentTenantId,
         locationId: locationId,
       ));
       
       return result.fold(
-        (failure) => 0,
+        (failure) {
+          print('❌ Failed to get inventory: $failure');
+          return 0;
+        },
         (inventories) {
+          print('📦 Found ${inventories.length} inventory items for location $locationId');
           final inventory = inventories.firstWhere(
             (inv) => inv.productId == productId && inv.locationId == locationId,
-            orElse: () => Inventory(
-              id: '',
-              tenantId: '',
-              productId: productId,
-              locationId: locationId,
-              quantity: 0,
-              reserved: 0,
-              updatedAt: DateTime.now(),
-            ),
+            orElse: () {
+              print('⚠️ No inventory found for product $productId at location $locationId');
+              return Inventory(
+                id: '',
+                tenantId: '',
+                productId: productId,
+                locationId: locationId,
+                quantity: 0,
+                reserved: 0,
+                updatedAt: DateTime.now(),
+              );
+            },
           );
+          print('✅ Found inventory: quantity = ${inventory.quantity}');
           return inventory.quantity;
         },
       );
